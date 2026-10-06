@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.versioncontrol.AuthenticationIntegrationTests
 -------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.96 s -- in com.versioncontrol.AuthenticationIntegrationTests
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 27.96 s -- in com.versioncontrol.AuthenticationIntegrationTests

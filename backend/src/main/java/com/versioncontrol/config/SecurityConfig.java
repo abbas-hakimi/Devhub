@@ -66,7 +66,13 @@ public class SecurityConfig {
                                 "/api/auth/login"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/repositories").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/repositories/{id:\\d+}").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/repositories/{id:\\d+}",
+                                "/api/repositories/{repositoryId:\\d+}/issues",
+                                "/api/repositories/{repositoryId:\\d+}/labels",
+                                "/api/issues/{issueId:\\d+}",
+                                "/api/issues/{issueId:\\d+}/comments"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -37,6 +38,9 @@ public class ApiExceptionHandler {
     @ExceptionHandler(RepositoryConflictException.class)
     ResponseEntity<ApiError> repositoryConflict(RepositoryConflictException exception) { return response(HttpStatus.CONFLICT, exception.getMessage(), Map.of()); }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    ResponseEntity<ApiError> invalidRequest(InvalidRequestException exception) { return response(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of()); }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ApiError> notFound(ResourceNotFoundException exception) { return response(HttpStatus.NOT_FOUND, exception.getMessage(), Map.of()); }
 
@@ -45,6 +49,9 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiError> unreadable(HttpMessageNotReadableException exception) { return response(HttpStatus.BAD_REQUEST, "Request body is invalid", Map.of()); }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiError> typeMismatch(MethodArgumentTypeMismatchException exception) { return response(HttpStatus.BAD_REQUEST, "Request parameter or path value is invalid", Map.of()); }
 
     @ExceptionHandler(BadCredentialsException.class)
     ResponseEntity<ApiError> badCredentials(BadCredentialsException exception) { return response(HttpStatus.UNAUTHORIZED, "Invalid username/email or password", Map.of()); }
