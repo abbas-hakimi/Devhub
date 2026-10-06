@@ -12,6 +12,8 @@ public class UpdateIssueRequest {
     private IssueStatus status;
     private Long assigneeId;
     private boolean assigneeIdSpecified;
+    private Long milestoneId;
+    private boolean milestoneIdSpecified;
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -23,4 +25,8 @@ public class UpdateIssueRequest {
     @JsonSetter("assigneeId")
     public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; this.assigneeIdSpecified = true; }
     public boolean isAssigneeIdSpecified() { return assigneeIdSpecified; }
+    public Long getMilestoneId() { return milestoneId; }
+    @JsonSetter("milestoneId")
+    public void setMilestoneId(Long milestoneId) { this.milestoneId = milestoneId; this.milestoneIdSpecified = true; }
+    public boolean isMilestoneIdSpecified() { return milestoneIdSpecified; }
 }

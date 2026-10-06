@@ -9,6 +9,9 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.versioncontrol.entity.Repository;
+import com.versioncontrol.entity.Issue;
+import com.versioncontrol.entity.IssueStatus;
+import com.versioncontrol.entity.Milestone;
 import com.versioncontrol.entity.RepositoryStar;
 import com.versioncontrol.entity.RepositoryVisibility;
 import com.versioncontrol.entity.User;
@@ -28,6 +31,12 @@ class PersistenceMappingTests {
 
     @Autowired
     private RepositoryStarRepository repositoryStarRepository;
+
+    @Autowired
+    private MilestoneRepository milestoneRepository;
+
+    @Autowired
+    private IssueRepository issueRepository;
 
     @Test
     void savesCoreEntitiesAndRelationships() {
@@ -88,6 +97,23 @@ class PersistenceMappingTests {
         assertThrows(IllegalArgumentException.class, () ->
                 userFollowRepository.saveAndFlush(new UserFollow(user, user))
         );
+    }
+
+    @Test
+    void milestoneAndOptionalIssueRelationshipArePersisted() {
+        User owner = userRepository.saveAndFlush(new User("milestone-owner", "milestone-owner@example.test", "encoded-value"));
+        Repository repository = repositoryRepository.saveAndFlush(new Repository("milestone-project", null, RepositoryVisibility.PUBLIC, owner));
+        Milestone milestone = milestoneRepository.saveAndFlush(new Milestone(repository, "release", null, null));
+        Issue issue = issueRepository.saveAndFlush(new Issue(repository, owner, null, "ticket", null));
+
+        assertThat(milestone.getId()).isNotNull();
+        assertThat(issue.getMilestone()).isNull();
+        issue.setMilestone(milestone);
+        issueRepository.saveAndFlush(issue);
+        assertThat(issueRepository.findById(issue.getId()).orElseThrow().getMilestone().getId()).isEqualTo(milestone.getId());
+        issue.setMilestone(null);
+        issueRepository.saveAndFlush(issue);
+        assertThat(issueRepository.findById(issue.getId()).orElseThrow().getMilestone()).isNull();
     }
 }
 

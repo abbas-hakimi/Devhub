@@ -4,6 +4,7 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\IssueCommentController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\IssueController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\LabelController.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\MilestoneController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\RepositoryController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\ApiError.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\auth\AuthResponse.java
@@ -18,6 +19,9 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\label\CreateLabelRequest.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\label\LabelResponse.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\label\UpdateLabelRequest.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\milestone\CreateMilestoneRequest.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\milestone\MilestoneResponse.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\milestone\UpdateMilestoneRequest.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\repository\CreateRepositoryRequest.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\repository\RepositoryResponse.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\repository\UpdateRepositoryRequest.java
@@ -27,6 +31,8 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\IssueLabel.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\IssueStatus.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\Label.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\Milestone.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\MilestoneState.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\Repository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\RepositoryStar.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\entity\RepositoryVisibility.java
@@ -42,6 +48,7 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\IssueLabelRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\IssueRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\LabelRepository.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\MilestoneRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\RepositoryRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\RepositoryStarRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\UserFollowRepository.java
@@ -55,6 +62,7 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\IssueCommentService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\IssueService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\LabelService.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\MilestoneService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\RepositoryAccessService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\RepositoryService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\VersionControlApplication.java

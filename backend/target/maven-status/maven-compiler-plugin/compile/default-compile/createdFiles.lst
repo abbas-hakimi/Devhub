@@ -1,9 +1,11 @@
 com\versioncontrol\security\JwtAuthenticationFilter.class
+com\versioncontrol\dto\milestone\MilestoneResponse$RepositorySummary.class
 com\versioncontrol\controller\RepositoryController.class
 com\versioncontrol\repository\IssueCommentRepository.class
 com\versioncontrol\dto\label\LabelResponse$RepositorySummary.class
 com\versioncontrol\entity\User.class
 com\versioncontrol\service\RepositoryAccessService.class
+com\versioncontrol\entity\Milestone.class
 com\versioncontrol\entity\Issue.class
 com\versioncontrol\dto\auth\RegisterRequest.class
 com\versioncontrol\exception\InvalidRequestException.class
@@ -18,6 +20,8 @@ com\versioncontrol\dto\issue\UpdateIssueRequest.class
 com\versioncontrol\exception\DuplicateUserException.class
 com\versioncontrol\service\AuthenticationService.class
 com\versioncontrol\dto\issue\CreateIssueRequest.class
+com\versioncontrol\dto\milestone\CreateMilestoneRequest.class
+com\versioncontrol\service\MilestoneService.class
 com\versioncontrol\dto\label\UpdateLabelRequest.class
 com\versioncontrol\dto\repository\RepositoryResponse$OwnerResponse.class
 com\versioncontrol\repository\UserRepository.class
@@ -34,10 +38,13 @@ com\versioncontrol\dto\repository\RepositoryResponse.class
 com\versioncontrol\controller\IssueCommentController.class
 com\versioncontrol\controller\IssueController.class
 com\versioncontrol\dto\issue\IssueResponse$RepositorySummary.class
+com\versioncontrol\entity\MilestoneState.class
 com\versioncontrol\dto\repository\CreateRepositoryRequest.class
 com\versioncontrol\exception\RepositoryConflictException.class
 com\versioncontrol\security\JwtService.class
+com\versioncontrol\repository\MilestoneRepository.class
 com\versioncontrol\security\RestAuthenticationEntryPoint.class
+com\versioncontrol\dto\milestone\MilestoneResponse.class
 com\versioncontrol\exception\ApiExceptionHandler.class
 com\versioncontrol\dto\auth\AuthResponse.class
 com\versioncontrol\repository\RepositoryRepository.class
@@ -47,9 +54,11 @@ com\versioncontrol\dto\ApiError.class
 com\versioncontrol\repository\IssueLabelRepository.class
 com\versioncontrol\VersionControlApplication.class
 com\versioncontrol\repository\LabelRepository.class
+com\versioncontrol\dto\milestone\UpdateMilestoneRequest.class
 com\versioncontrol\repository\IssueRepository.class
 com\versioncontrol\service\IssueCommentService.class
 com\versioncontrol\exception\ResourceNotFoundException.class
+com\versioncontrol\controller\MilestoneController.class
 com\versioncontrol\dto\user\UserResponse.class
 com\versioncontrol\repository\RepositoryStarRepository.class
 com\versioncontrol\security\UserPrincipal.class
@@ -59,6 +68,7 @@ com\versioncontrol\entity\UserFollow.class
 com\versioncontrol\dto\issue\IssueResponse$SafeUser.class
 com\versioncontrol\controller\HealthController.class
 com\versioncontrol\controller\LabelController.class
+com\versioncontrol\dto\issue\IssueResponse$MilestoneSummary.class
 com\versioncontrol\entity\IssueLabel.class
 com\versioncontrol\dto\label\CreateLabelRequest.class
 com\versioncontrol\dto\repository\UpdateRepositoryRequest.class

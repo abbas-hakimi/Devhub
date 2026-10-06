@@ -2,6 +2,8 @@ com\versioncontrol\repository\PersistenceMappingTests.class
 com\versioncontrol\AuthenticationIntegrationTests.class
 com\versioncontrol\IssueCollaborationIntegrationTests$Account.class
 com\versioncontrol\IssueCollaborationIntegrationTests.class
+com\versioncontrol\MilestoneIntegrationTests.class
+com\versioncontrol\MilestoneIntegrationTests$Account.class
 com\versioncontrol\RepositoryPlatformIntegrationTests$TestAccount.class
 com\versioncontrol\RepositoryPlatformIntegrationTests.class
 com\versioncontrol\VersionControlApplicationTests.class

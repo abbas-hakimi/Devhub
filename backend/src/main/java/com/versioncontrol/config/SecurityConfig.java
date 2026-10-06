@@ -70,6 +70,8 @@ public class SecurityConfig {
                                 "/api/repositories/{id:\\d+}",
                                 "/api/repositories/{repositoryId:\\d+}/issues",
                                 "/api/repositories/{repositoryId:\\d+}/labels",
+                                "/api/repositories/{repositoryId:\\d+}/milestones",
+                                "/api/milestones/{milestoneId:\\d+}",
                                 "/api/issues/{issueId:\\d+}",
                                 "/api/issues/{issueId:\\d+}/comments"
                         ).permitAll()

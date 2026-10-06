@@ -26,6 +26,8 @@ public class Issue {
     private User author;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "assignee_id")
     private User assignee;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "milestone_id")
+    private Milestone milestone;
     @Column(nullable = false, length = 255)
     private String title;
     @Column(columnDefinition = "TEXT")
@@ -49,6 +51,8 @@ public class Issue {
     public User getAuthor() { return author; }
     public User getAssignee() { return assignee; }
     public void setAssignee(User assignee) { this.assignee = assignee; }
+    public Milestone getMilestone() { return milestone; }
+    public void setMilestone(Milestone milestone) { this.milestone = milestone; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getDescription() { return description; }

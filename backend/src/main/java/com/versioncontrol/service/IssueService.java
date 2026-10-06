@@ -14,6 +14,7 @@ import com.versioncontrol.dto.issue.UpdateIssueRequest;
 import com.versioncontrol.dto.label.LabelResponse;
 import com.versioncontrol.entity.Issue;
 import com.versioncontrol.entity.IssueStatus;
+import com.versioncontrol.entity.Milestone;
 import com.versioncontrol.entity.Repository;
 import com.versioncontrol.entity.User;
 import com.versioncontrol.exception.RepositoryConflictException;
@@ -21,6 +22,7 @@ import com.versioncontrol.exception.InvalidRequestException;
 import com.versioncontrol.exception.ResourceForbiddenException;
 import com.versioncontrol.exception.ResourceNotFoundException;
 import com.versioncontrol.repository.IssueLabelRepository;
+import com.versioncontrol.repository.MilestoneRepository;
 import com.versioncontrol.repository.IssueRepository;
 import com.versioncontrol.repository.UserRepository;
 
@@ -30,9 +32,11 @@ public class IssueService {
     private final IssueLabelRepository issueLabels;
     private final UserRepository users;
     private final RepositoryAccessService access;
+    private final MilestoneRepository milestones;
 
-    public IssueService(IssueRepository issues, IssueLabelRepository issueLabels, UserRepository users, RepositoryAccessService access) {
-        this.issues = issues; this.issueLabels = issueLabels; this.users = users; this.access = access;
+    public IssueService(IssueRepository issues, IssueLabelRepository issueLabels, UserRepository users, RepositoryAccessService access,
+            MilestoneRepository milestones) {
+        this.issues = issues; this.issueLabels = issueLabels; this.users = users; this.access = access; this.milestones = milestones;
     }
 
     @Transactional
@@ -83,6 +87,9 @@ public class IssueService {
                 && !java.util.Objects.equals(request.getAssigneeId(), issue.getAssignee() == null ? null : issue.getAssignee().getId())) {
             throw new ResourceForbiddenException("Only the repository owner can change issue assignee");
         }
+        if (request.isMilestoneIdSpecified() && !owner) {
+            throw new ResourceForbiddenException("Only the repository owner can change issue milestone");
+        }
         if (request.getTitle() != null) {
             if (request.getTitle().isBlank()) throw new InvalidRequestException("title must not be blank");
             issue.setTitle(request.getTitle().trim());
@@ -96,6 +103,9 @@ public class IssueService {
         if (owner && request.isAssigneeIdSpecified()) {
             User assignee = request.getAssigneeId() == null ? null : findAssignee(repository, issue.getAuthor(), request.getAssigneeId());
             issue.setAssignee(assignee);
+        }
+        if (owner && request.isMilestoneIdSpecified()) {
+            issue.setMilestone(request.getMilestoneId() == null ? null : findMilestoneForRepository(request.getMilestoneId(), repository));
         }
         try {
             return response(issues.saveAndFlush(issue));
@@ -120,6 +130,14 @@ public class IssueService {
             throw new ResourceNotFoundException("Assignee is not allowed for this repository");
         }
         return assignee;
+    }
+    private Milestone findMilestoneForRepository(Long milestoneId, Repository repository) {
+        Milestone milestone = milestones.findById(milestoneId)
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone not found"));
+        if (!milestone.getRepository().getId().equals(repository.getId())) {
+            throw new InvalidRequestException("Issue and milestone must belong to the same repository");
+        }
+        return milestone;
     }
     private IssueResponse response(Issue issue) {
         List<LabelResponse> labels = issueLabels.findByIssue_IdOrderByLabel_NameAsc(issue.getId()).stream()
