@@ -14,6 +14,7 @@ com\versioncontrol\validation\ValidTreeEntryName.class
 com\versioncontrol\dto\milestone\CreateMilestoneRequest.class
 com\versioncontrol\repository\TreeRepository.class
 com\versioncontrol\versioncontrol\hash\TreeHashInput.class
+com\versioncontrol\controller\CommitController.class
 com\versioncontrol\exception\ResourceForbiddenException.class
 com\versioncontrol\entity\RepositoryVisibility.class
 com\versioncontrol\service\RepositoryService.class
@@ -50,12 +51,15 @@ com\versioncontrol\versioncontrol\hash\TreeCanonicalizer.class
 com\versioncontrol\controller\LabelController.class
 com\versioncontrol\dto\issue\IssueResponse$MilestoneSummary.class
 com\versioncontrol\entity\IssueLabel.class
+com\versioncontrol\repository\TreeEntryRepository.class
 com\versioncontrol\security\JwtAuthenticationFilter.class
 com\versioncontrol\entity\Commit.class
 com\versioncontrol\controller\RepositoryController.class
+com\versioncontrol\service\CommitService$Directory.class
 com\versioncontrol\service\RepositoryAccessService.class
 com\versioncontrol\entity\Milestone.class
 com\versioncontrol\entity\TreeEntryType.class
+com\versioncontrol\service\CommitService.class
 com\versioncontrol\entity\Issue.class
 com\versioncontrol\validation\ValidBranchName.class
 com\versioncontrol\dto\auth\RegisterRequest.class
@@ -74,6 +78,7 @@ com\versioncontrol\repository\UserRepository.class
 com\versioncontrol\versioncontrol\storage\ObjectStorageConfiguration.class
 com\versioncontrol\dto\auth\LoginRequest.class
 com\versioncontrol\repository\BranchRepository.class
+com\versioncontrol\dto\git\CreateCommitRequest.class
 com\versioncontrol\entity\TreeEntry.class
 com\versioncontrol\dto\git\CreateBranchRequest.class
 com\versioncontrol\validation\TreeEntryNameValidator.class
@@ -81,10 +86,12 @@ com\versioncontrol\dto\comment\IssueCommentResponse.class
 com\versioncontrol\dto\git\GitInitializationResponse.class
 com\versioncontrol\dto\issue\IssueResponse$RepositorySummary.class
 com\versioncontrol\entity\MilestoneState.class
+com\versioncontrol\dto\git\CommitChangeRequest.class
 com\versioncontrol\exception\RepositoryConflictException.class
 com\versioncontrol\security\JwtService.class
 com\versioncontrol\repository\MilestoneRepository.class
 com\versioncontrol\security\RestAuthenticationEntryPoint.class
+com\versioncontrol\repository\BlobRepository.class
 com\versioncontrol\dto\milestone\MilestoneResponse.class
 com\versioncontrol\entity\Blob.class
 com\versioncontrol\service\GitInitializationResult.class
@@ -97,6 +104,7 @@ com\versioncontrol\controller\MilestoneController.class
 com\versioncontrol\repository\CommitRepository.class
 com\versioncontrol\repository\RepositoryStarRepository.class
 com\versioncontrol\security\UserPrincipal.class
+com\versioncontrol\dto\git\CommitResponse.class
 com\versioncontrol\entity\Repository.class
 com\versioncontrol\entity\Label.class
 com\versioncontrol\entity\UserFollow.class

@@ -1,6 +1,7 @@
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\config\SecurityConfig.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\AuthController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\BranchController.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\CommitController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\GitInitializationController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\HealthController.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\controller\IssueCommentController.java
@@ -16,7 +17,10 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\comment\IssueCommentResponse.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\comment\UpdateIssueCommentRequest.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\git\BranchResponse.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\git\CommitChangeRequest.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\git\CommitResponse.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\git\CreateBranchRequest.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\git\CreateCommitRequest.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\git\GitInitializationResponse.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\issue\CreateIssueRequest.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\dto\issue\IssueResponse.java
@@ -55,6 +59,7 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\exception\RepositoryConflictException.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\exception\ResourceForbiddenException.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\exception\ResourceNotFoundException.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\BlobRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\BranchRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\CommitRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\IssueCommentRepository.java
@@ -64,6 +69,7 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\MilestoneRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\RepositoryRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\RepositoryStarRepository.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\TreeEntryRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\TreeRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\UserFollowRepository.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\repository\UserRepository.java
@@ -74,6 +80,7 @@ C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versio
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\security\VersionControlUserDetailsService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\AuthenticationService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\BranchService.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\CommitService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\GitInitializationResult.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\GitInitializationService.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\main\java\com\versioncontrol\service\GitInitializationTransaction.java

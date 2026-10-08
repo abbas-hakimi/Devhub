@@ -3,6 +3,7 @@ com\versioncontrol\GitInitializationIntegrationTests.class
 com\versioncontrol\versioncontrol\storage\LocalFileObjectStorageTests$1.class
 com\versioncontrol\versioncontrol\hash\CommitCanonicalizerTests.class
 com\versioncontrol\versioncontrol\storage\LocalFileObjectStorageTests$2.class
+com\versioncontrol\CommitEngineIntegrationTests$Account.class
 com\versioncontrol\versioncontrol\hash\TreeCanonicalizerTests.class
 com\versioncontrol\RepositoryPlatformIntegrationTests$TestAccount.class
 com\versioncontrol\RepositoryPlatformIntegrationTests.class
@@ -16,4 +17,5 @@ com\versioncontrol\versioncontrol\hash\Sha256HasherTests.class
 com\versioncontrol\MilestoneIntegrationTests.class
 com\versioncontrol\versioncontrol\storage\LocalFileObjectStorageTests.class
 com\versioncontrol\BranchManagementIntegrationTests$TestAccount.class
+com\versioncontrol\CommitEngineIntegrationTests.class
 com\versioncontrol\MilestoneIntegrationTests$Account.class
