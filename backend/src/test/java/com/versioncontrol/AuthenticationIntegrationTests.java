@@ -56,7 +56,14 @@ class AuthenticationIntegrationTests {
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.username").value(username))
                 .andExpect(jsonPath("$.passwordHash").doesNotExist());
-        String changedSignature = token.substring(0, token.length() - 1) + (token.endsWith("a") ? "b" : "a");
+        int signatureStart = token.lastIndexOf('.') + 1;
+        char original = token.charAt(signatureStart);
+        char replacement = original == 'a' ? 'b' : 'a';
+
+        String changedSignature =
+        token.substring(0, signatureStart)
+        + replacement
+        + token.substring(signatureStart + 1);   
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + changedSignature)).andExpect(status().isUnauthorized());
         var key = io.jsonwebtoken.security.Keys.hmacShaKeyFor(io.jsonwebtoken.io.Decoders.BASE64.decode("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="));
         String expired = io.jsonwebtoken.Jwts.builder().subject(String.valueOf(users.findByUsernameIgnoreCase(username).orElseThrow().getId()))

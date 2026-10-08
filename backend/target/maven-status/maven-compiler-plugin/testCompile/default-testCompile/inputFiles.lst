@@ -1,6 +1,11 @@
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\AuthenticationIntegrationTests.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\GitInitializationIntegrationTests.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\IssueCollaborationIntegrationTests.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\MilestoneIntegrationTests.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\repository\PersistenceMappingTests.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\RepositoryPlatformIntegrationTests.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\versioncontrol\hash\CommitCanonicalizerTests.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\versioncontrol\hash\Sha256HasherTests.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\versioncontrol\hash\TreeCanonicalizerTests.java
+C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\versioncontrol\storage\LocalFileObjectStorageTests.java
 C:\Users\hakim\OneDrive\Desktop\version-control\backend\src\test\java\com\versioncontrol\VersionControlApplicationTests.java

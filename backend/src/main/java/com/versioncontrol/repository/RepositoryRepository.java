@@ -1,12 +1,20 @@
 package com.versioncontrol.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import com.versioncontrol.entity.Repository;
 import com.versioncontrol.entity.RepositoryVisibility;
 import java.util.List;
 
 public interface RepositoryRepository extends JpaRepository<Repository, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Repository r join fetch r.owner where r.id = :id")
+    java.util.Optional<Repository> findByIdForUpdate(@Param("id") Long id);
 
     boolean existsByOwner_IdAndNameIgnoreCase(Long ownerId, String name);
 
