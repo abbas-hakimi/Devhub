@@ -9,9 +9,11 @@ com\versioncontrol\RepositoryPlatformIntegrationTests.class
 com\versioncontrol\VersionControlApplicationTests.class
 com\versioncontrol\GitInitializationIntegrationTests$TestAccount.class
 com\versioncontrol\AuthenticationIntegrationTests.class
+com\versioncontrol\BranchManagementIntegrationTests.class
 com\versioncontrol\IssueCollaborationIntegrationTests$Account.class
 com\versioncontrol\IssueCollaborationIntegrationTests.class
 com\versioncontrol\versioncontrol\hash\Sha256HasherTests.class
 com\versioncontrol\MilestoneIntegrationTests.class
 com\versioncontrol\versioncontrol\storage\LocalFileObjectStorageTests.class
+com\versioncontrol\BranchManagementIntegrationTests$TestAccount.class
 com\versioncontrol\MilestoneIntegrationTests$Account.class

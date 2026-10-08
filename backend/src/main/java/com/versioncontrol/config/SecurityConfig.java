@@ -71,6 +71,8 @@ public class SecurityConfig {
                                 "/api/repositories/{repositoryId:\\d+}/issues",
                                 "/api/repositories/{repositoryId:\\d+}/labels",
                                 "/api/repositories/{repositoryId:\\d+}/milestones",
+                                "/api/repositories/{repositoryId:\\d+}/branches",
+                                "/api/branches/{branchId:\\d+}",
                                 "/api/milestones/{milestoneId:\\d+}",
                                 "/api/issues/{issueId:\\d+}",
                                 "/api/issues/{issueId:\\d+}/comments"
