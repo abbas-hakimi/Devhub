@@ -32,7 +32,7 @@ public class LabelService {
     public LabelResponse create(Long repositoryId, CreateLabelRequest request, Long actorId) {
         var repository = access.find(repositoryId);
         access.requireReadable(repository, actorId);
-        access.requireOwner(repository, actorId);
+        access.requireMaintain(repository, actorId);
         String name = request.name().trim();
         ensureNameAvailable(repositoryId, name, null);
         try {
@@ -53,7 +53,7 @@ public class LabelService {
     public LabelResponse update(Long labelId, UpdateLabelRequest request, Long actorId) {
         Label label = findLabel(labelId);
         access.requireReadable(label.getRepository(), actorId);
-        access.requireOwner(label.getRepository(), actorId);
+        access.requireMaintain(label.getRepository(), actorId);
         String name = request.name().trim();
         ensureNameAvailable(label.getRepository().getId(), name, labelId);
         label.setName(name);
@@ -70,7 +70,7 @@ public class LabelService {
     public void delete(Long labelId, Long actorId) {
         Label label = findLabel(labelId);
         access.requireReadable(label.getRepository(), actorId);
-        access.requireOwner(label.getRepository(), actorId);
+        access.requireMaintain(label.getRepository(), actorId);
         labels.delete(label);
     }
 
@@ -78,10 +78,10 @@ public class LabelService {
     public void attach(Long issueId, Long labelId, Long actorId) {
         Issue issue = issues.findById(issueId).orElseThrow(() -> new ResourceNotFoundException("Issue not found"));
         access.requireReadable(issue.getRepository(), actorId);
-        access.requireOwner(issue.getRepository(), actorId);
+        access.requireMaintain(issue.getRepository(), actorId);
         Label label = findLabel(labelId);
         access.requireReadable(label.getRepository(), actorId);
-        access.requireOwner(label.getRepository(), actorId);
+        access.requireMaintain(label.getRepository(), actorId);
         if (!issue.getRepository().getId().equals(label.getRepository().getId())) {
             throw new InvalidRequestException("Issue and label must belong to the same repository");
         }
@@ -99,10 +99,10 @@ public class LabelService {
     public void detach(Long issueId, Long labelId, Long actorId) {
         Issue issue = issues.findById(issueId).orElseThrow(() -> new ResourceNotFoundException("Issue not found"));
         access.requireReadable(issue.getRepository(), actorId);
-        access.requireOwner(issue.getRepository(), actorId);
+        access.requireMaintain(issue.getRepository(), actorId);
         Label label = findLabel(labelId);
         access.requireReadable(label.getRepository(), actorId);
-        access.requireOwner(label.getRepository(), actorId);
+        access.requireMaintain(label.getRepository(), actorId);
         if (!issue.getRepository().getId().equals(label.getRepository().getId())) {
             throw new InvalidRequestException("Issue and label must belong to the same repository");
         }

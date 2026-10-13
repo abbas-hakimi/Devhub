@@ -22,11 +22,13 @@ public class RepositoryService {
     private final RepositoryRepository repositories;
     private final UserRepository users;
     private final RepositoryStarRepository stars;
+    private final RepositoryAccessService access;
 
-    public RepositoryService(RepositoryRepository repositories, UserRepository users, RepositoryStarRepository stars) {
+    public RepositoryService(RepositoryRepository repositories, UserRepository users, RepositoryStarRepository stars, RepositoryAccessService access) {
         this.repositories = repositories;
         this.users = users;
         this.stars = stars;
+        this.access = access;
     }
 
     @Transactional
@@ -47,10 +49,7 @@ public class RepositoryService {
     @Transactional(readOnly = true)
     public RepositoryResponse get(Long id, Long authenticatedUserId) {
         Repository repository = findRepository(id);
-        if (repository.getVisibility() == RepositoryVisibility.PRIVATE
-                && (authenticatedUserId == null || !repository.getOwner().getId().equals(authenticatedUserId))) {
-            throw new ResourceNotFoundException("Repository not found");
-        }
+        access.requireReadable(repository, authenticatedUserId);
         return RepositoryResponse.from(repository);
     }
 
@@ -74,13 +73,15 @@ public class RepositoryService {
 
     @Transactional(readOnly = true)
     public List<RepositoryResponse> listMine(Long authenticatedUserId) {
-        return repositories.findByOwner_IdOrderByCreatedAtDesc(authenticatedUserId).stream().map(RepositoryResponse::from).toList();
+        java.util.Set<Long> ids = new java.util.HashSet<>(access.acceptedRepositoryIds(authenticatedUserId));
+        repositories.findByOwner_IdOrderByCreatedAtDesc(authenticatedUserId).forEach(r -> ids.add(r.getId()));
+        return repositories.findByIdInOrderByCreatedAtDesc(List.copyOf(ids)).stream().map(RepositoryResponse::from).toList();
     }
 
     @Transactional
     public RepositoryResponse update(Long id, UpdateRepositoryRequest request, Long authenticatedUserId) {
         Repository repository = findRepository(id);
-        requireOwner(repository, authenticatedUserId);
+        access.requireMaintain(repository, authenticatedUserId);
         String name = request.name().trim();
         if (repositories.existsByOwner_IdAndNameIgnoreCaseAndIdNot(repository.getOwner().getId(), name, id)) {
             throw new RepositoryConflictException("A repository with this name already exists for this owner");
@@ -98,7 +99,7 @@ public class RepositoryService {
     @Transactional
     public void delete(Long id, Long authenticatedUserId) {
         Repository repository = findRepository(id);
-        requireOwner(repository, authenticatedUserId);
+        access.requireOwner(repository, authenticatedUserId);
         if (stars.existsByRepository_Id(id)) {
             throw new RepositoryConflictException("Repository has dependent star records and cannot be deleted yet");
         }
@@ -112,12 +113,6 @@ public class RepositoryService {
 
     private Repository findRepository(Long id) {
         return repositories.findById(id).orElseThrow(() -> new ResourceNotFoundException("Repository not found"));
-    }
-
-    private void requireOwner(Repository repository, Long authenticatedUserId) {
-        if (authenticatedUserId == null || !repository.getOwner().getId().equals(authenticatedUserId)) {
-            throw new ResourceForbiddenException("Only the repository owner can modify it");
-        }
     }
 
     private String cleanDescription(String description) {

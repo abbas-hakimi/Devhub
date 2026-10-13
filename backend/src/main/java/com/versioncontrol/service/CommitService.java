@@ -31,6 +31,7 @@ import com.versioncontrol.entity.Repository;
 import com.versioncontrol.entity.Tree;
 import com.versioncontrol.entity.TreeEntry;
 import com.versioncontrol.entity.TreeEntryType;
+import com.versioncontrol.entity.User;
 import com.versioncontrol.exception.InvalidRequestException;
 import com.versioncontrol.exception.RepositoryConflictException;
 import com.versioncontrol.exception.ResourceNotFoundException;
@@ -40,6 +41,7 @@ import com.versioncontrol.repository.CommitRepository;
 import com.versioncontrol.repository.RepositoryRepository;
 import com.versioncontrol.repository.TreeEntryRepository;
 import com.versioncontrol.repository.TreeRepository;
+import com.versioncontrol.repository.UserRepository;
 import com.versioncontrol.validation.BranchNameValidator;
 import com.versioncontrol.validation.TreeEntryNameValidator;
 import com.versioncontrol.versioncontrol.hash.CommitCanonicalizer;
@@ -63,10 +65,11 @@ public class CommitService {
     private final BlobRepository blobs;
     private final RepositoryAccessService repositoryAccess;
     private final ObjectStorage storage;
+    private final UserRepository users;
 
     public CommitService(RepositoryRepository repositories, BranchRepository branches, CommitRepository commits,
             TreeRepository trees, TreeEntryRepository treeEntries, BlobRepository blobs,
-            RepositoryAccessService repositoryAccess, ObjectStorage storage) {
+            RepositoryAccessService repositoryAccess, ObjectStorage storage, UserRepository users) {
         this.repositories = repositories;
         this.branches = branches;
         this.commits = commits;
@@ -75,6 +78,7 @@ public class CommitService {
         this.blobs = blobs;
         this.repositoryAccess = repositoryAccess;
         this.storage = storage;
+        this.users = users;
     }
 
     @Transactional
@@ -82,7 +86,7 @@ public class CommitService {
         // Serialize operations that can create globally shared immutable tree/blob metadata.
         Repository repository = repositories.findByIdForUpdate(repositoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Repository not found"));
-        repositoryAccess.requireOwner(repository, userId);
+        repositoryAccess.requireWrite(repository, userId);
         if (!BranchNameValidator.isValidName(request.branch())) {
             throw new InvalidRequestException("Branch name is invalid");
         }
@@ -178,7 +182,8 @@ public class CommitService {
         LocalDateTime persistedAt = LocalDateTime.ofInstant(createdAt, ZoneOffset.UTC);
         Commit commit;
         try {
-            commit = commits.saveAndFlush(new Commit(repository, commitHash, request.message(), repository.getOwner(),
+            User author = users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            commit = commits.saveAndFlush(new Commit(repository, commitHash, request.message(), author,
                     newRoot, parent, persistedAt));
             branch.setHeadCommit(commit);
             branches.saveAndFlush(branch);

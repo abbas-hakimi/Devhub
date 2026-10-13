@@ -32,5 +32,7 @@ public interface RepositoryRepository extends JpaRepository<Repository, Long> {
             RepositoryVisibility visibility, String username, String name);
 
     List<Repository> findByOwner_IdOrderByCreatedAtDesc(Long ownerId);
+
+    List<Repository> findByIdInOrderByCreatedAtDesc(List<Long> ids);
 }
 

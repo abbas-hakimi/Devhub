@@ -33,7 +33,7 @@ public class BranchService {
     @Transactional
     public BranchResponse create(Long repositoryId, CreateBranchRequest request, Long authenticatedUserId) {
         Repository repository = repositoryAccess.find(repositoryId);
-        repositoryAccess.requireOwner(repository, authenticatedUserId);
+        repositoryAccess.requireWrite(repository, authenticatedUserId);
 
         Branch main = branches.findByRepository_IdAndName(repositoryId, MAIN_BRANCH)
                 .orElseThrow(() -> new RepositoryConflictException("Repository must be initialized before creating branches"));

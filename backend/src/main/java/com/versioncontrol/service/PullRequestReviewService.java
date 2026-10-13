@@ -40,6 +40,7 @@ import com.versioncontrol.repository.BranchRepository;
 import com.versioncontrol.repository.PullRequestRepository;
 import com.versioncontrol.repository.PullRequestReviewCommentRepository;
 import com.versioncontrol.repository.PullRequestReviewRepository;
+import com.versioncontrol.repository.UserRepository;
 
 @Service
 public class PullRequestReviewService {
@@ -54,10 +55,11 @@ public class PullRequestReviewService {
     private final RepositoryAccessService access;
     private final FileDiffService fileDiffs;
     private final EntityManager entityManager;
+    private final UserRepository users;
 
     public PullRequestReviewService(PullRequestRepository pullRequests, PullRequestReviewRepository reviews,
             PullRequestReviewCommentRepository comments, BranchRepository branches,
-            RepositoryAccessService access, FileDiffService fileDiffs, EntityManager entityManager) {
+            RepositoryAccessService access, FileDiffService fileDiffs, EntityManager entityManager, UserRepository users) {
         this.pullRequests = pullRequests;
         this.reviews = reviews;
         this.comments = comments;
@@ -65,6 +67,7 @@ public class PullRequestReviewService {
         this.access = access;
         this.fileDiffs = fileDiffs;
         this.entityManager = entityManager;
+        this.users = users;
     }
 
     @Transactional
@@ -84,11 +87,7 @@ public class PullRequestReviewService {
             fileDiffs.validateInlineComment(heads.target().getHeadCommit().getRootTree(),
                     heads.source().getHeadCommit().getRootTree(), comment.path(), comment.lineNumber(), comment.side());
         }
-        User reviewer = pr.getRepository().getOwner().getId().equals(userId)
-                ? pr.getRepository().getOwner() : pr.getAuthor();
-        if (reviewer == null || !reviewer.getId().equals(userId)) {
-            throw new ResourceForbiddenException("Reviewer identity is unavailable");
-        }
+        User reviewer = users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("Reviewer not found"));
         PullRequestReview review = reviews.saveAndFlush(new PullRequestReview(pr, reviewer,
                 request.state(), body, heads.source().getHeadCommit().getId(), heads.source().getHeadCommit().getCommitHash()));
         for (InlineReviewCommentRequest comment : safeComments(request.comments())) {
@@ -229,19 +228,16 @@ public class PullRequestReviewService {
 
     private void requireReviewer(PullRequest pr, PullRequestReviewState state, Long userId) {
         if (userId == null) throw new ResourceForbiddenException("Authentication is required to submit a review");
-        boolean owner = access.isOwner(pr.getRepository(), userId);
         boolean author = pr.getAuthor().getId().equals(userId);
-        if (!owner && !(author && state == PullRequestReviewState.COMMENTED)) {
-            throw new ResourceForbiddenException("Only the repository owner or pull request author may submit this review");
-        }
+        access.requireWrite(pr.getRepository(), userId);
         if (state == PullRequestReviewState.APPROVED && author) {
             throw new ResourceForbiddenException("Pull request authors cannot approve their own pull request");
         }
     }
 
     private void requireCommentOwner(PullRequestReviewComment comment, PullRequest pr, Long userId) {
-        if (userId == null || (!comment.getAuthor().getId().equals(userId) && !access.isOwner(pr.getRepository(), userId))) {
-            throw new ResourceForbiddenException("Only the comment author or repository owner may modify this comment");
+        if (userId == null || (!comment.getAuthor().getId().equals(userId) && !access.hasMaintain(pr.getRepository(), userId))) {
+            throw new ResourceForbiddenException("Only the comment author or a repository maintainer may modify this comment");
         }
     }
 

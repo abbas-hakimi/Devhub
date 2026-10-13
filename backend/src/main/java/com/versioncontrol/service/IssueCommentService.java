@@ -8,6 +8,7 @@ import com.versioncontrol.dto.comment.IssueCommentResponse;
 import com.versioncontrol.dto.comment.UpdateIssueCommentRequest;
 import com.versioncontrol.entity.Issue;
 import com.versioncontrol.entity.IssueComment;
+import com.versioncontrol.entity.CollaboratorRole;
 import com.versioncontrol.exception.ResourceForbiddenException;
 import com.versioncontrol.exception.ResourceNotFoundException;
 import com.versioncontrol.repository.IssueCommentRepository;
@@ -29,6 +30,7 @@ public class IssueCommentService {
     public IssueCommentResponse create(Long issueId, CreateIssueCommentRequest request, Long actorId) {
         Issue issue = findIssue(issueId);
         access.requireReadable(issue.getRepository(), actorId);
+        rejectReadOnlyCollaborator(issue.getRepository(), actorId);
         return IssueCommentResponse.from(comments.saveAndFlush(new IssueComment(issue,
                 users.findById(actorId).orElseThrow(() -> new ResourceNotFoundException("User not found")), request.body().trim())));
     }
@@ -44,6 +46,7 @@ public class IssueCommentService {
     public IssueCommentResponse update(Long commentId, UpdateIssueCommentRequest request, Long actorId) {
         IssueComment comment = findComment(commentId);
         access.requireReadable(comment.getIssue().getRepository(), actorId);
+        rejectReadOnlyCollaborator(comment.getIssue().getRepository(), actorId);
         requireAuthorOrOwner(comment, actorId);
         comment.setBody(request.body().trim());
         return IssueCommentResponse.from(comments.saveAndFlush(comment));
@@ -53,15 +56,20 @@ public class IssueCommentService {
     public void delete(Long commentId, Long actorId) {
         IssueComment comment = findComment(commentId);
         access.requireReadable(comment.getIssue().getRepository(), actorId);
+        rejectReadOnlyCollaborator(comment.getIssue().getRepository(), actorId);
         requireAuthorOrOwner(comment, actorId);
         comments.delete(comment);
     }
 
     private Issue findIssue(Long id) { return issues.findById(id).orElseThrow(() -> new ResourceNotFoundException("Issue not found")); }
     private IssueComment findComment(Long id) { return comments.findById(id).orElseThrow(() -> new ResourceNotFoundException("Comment not found")); }
+    private void rejectReadOnlyCollaborator(com.versioncontrol.entity.Repository repository, Long actorId) {
+        if (access.roleOf(repository, actorId) == CollaboratorRole.READ)
+            throw new ResourceForbiddenException("READ collaborators cannot modify issue comments");
+    }
     private void requireAuthorOrOwner(IssueComment comment, Long actorId) {
-        if (!comment.getAuthor().getId().equals(actorId) && !access.isOwner(comment.getIssue().getRepository(), actorId)) {
-            throw new ResourceForbiddenException("Only the comment author or repository owner can modify it");
+        if (!comment.getAuthor().getId().equals(actorId) && !access.hasMaintain(comment.getIssue().getRepository(), actorId)) {
+            throw new ResourceForbiddenException("Only the comment author or a repository maintainer can modify it");
         }
     }
 }

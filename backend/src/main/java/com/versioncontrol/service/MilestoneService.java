@@ -33,7 +33,7 @@ public class MilestoneService {
     public MilestoneResponse create(Long repositoryId, CreateMilestoneRequest request, Long actorId) {
         var repository = access.find(repositoryId);
         access.requireReadable(repository, actorId);
-        access.requireOwner(repository, actorId);
+        access.requireMaintain(repository, actorId);
         String title = request.title().trim();
         ensureTitleAvailable(repositoryId, title, null);
         try {
@@ -61,7 +61,7 @@ public class MilestoneService {
     public MilestoneResponse update(Long milestoneId, UpdateMilestoneRequest request, Long actorId) {
         Milestone milestone = findMilestone(milestoneId);
         access.requireReadable(milestone.getRepository(), actorId);
-        access.requireOwner(milestone.getRepository(), actorId);
+        access.requireMaintain(milestone.getRepository(), actorId);
         var violations = validator.validate(request);
         if (!violations.isEmpty()) throw new ConstraintViolationException(violations);
         if (request.isTitleSpecified()) {
@@ -92,7 +92,7 @@ public class MilestoneService {
     public void delete(Long milestoneId, Long actorId) {
         Milestone milestone = findMilestone(milestoneId);
         access.requireReadable(milestone.getRepository(), actorId);
-        access.requireOwner(milestone.getRepository(), actorId);
+        access.requireMaintain(milestone.getRepository(), actorId);
         milestones.clearIssueAssociations(milestoneId);
         milestones.delete(milestone);
     }

@@ -29,6 +29,7 @@ import com.versioncontrol.repository.BranchRepository;
 import com.versioncontrol.repository.CommitRepository;
 import com.versioncontrol.repository.PullRequestRepository;
 import com.versioncontrol.repository.RepositoryRepository;
+import com.versioncontrol.repository.UserRepository;
 
 @Service
 public class PullRequestService {
@@ -38,21 +39,23 @@ public class PullRequestService {
     private final CommitRepository commits;
     private final RepositoryAccessService access;
     private final Validator validator;
+    private final UserRepository users;
 
     public PullRequestService(PullRequestRepository pullRequests, RepositoryRepository repositories,
-            BranchRepository branches, CommitRepository commits, RepositoryAccessService access, Validator validator) {
+            BranchRepository branches, CommitRepository commits, RepositoryAccessService access, Validator validator, UserRepository users) {
         this.pullRequests = pullRequests;
         this.repositories = repositories;
         this.branches = branches;
         this.commits = commits;
         this.access = access;
         this.validator = validator;
+        this.users = users;
     }
 
     @Transactional
     public PullRequestResponse create(Long repositoryId, CreatePullRequestRequest request, Long userId) {
         Repository repository = lockRepository(repositoryId);
-        access.requireOwner(repository, userId);
+        access.requireWrite(repository, userId);
         if (!branches.existsByRepository_IdAndName(repositoryId, "main"))
             throw new RepositoryConflictException("Repository must be initialized before creating pull requests");
         Branch source = branch(repositoryId, request.sourceBranch());
@@ -64,7 +67,7 @@ public class PullRequestService {
         String title = request.title().trim();
         if (title.isEmpty()) throw new InvalidRequestException("Title is required");
         PullRequest pr = new PullRequest(repository, pullRequests.findMaximumNumber(repositoryId) + 1,
-                title, normalizeDescription(request.description()), repository.getOwner(), source, target,
+                title, normalizeDescription(request.description()), users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found")), source, target,
                 source.getHeadCommit(), target.getHeadCommit());
         try {
             return PullRequestResponse.from(pullRequests.saveAndFlush(pr));
@@ -95,7 +98,7 @@ public class PullRequestService {
     public PullRequestResponse update(Long id, UpdatePullRequestRequest request, Long userId) {
         PullRequest pr = findDetailed(id);
         access.requireReadable(pr.getRepository(), userId);
-        requireAuthorOrOwner(pr, userId);
+        requireAuthorOrMaintainer(pr, userId);
         if (!validator.validate(request).isEmpty()) throw new InvalidRequestException("Pull request update contains invalid fields");
         if (!request.isTitlePresent() && !request.isDescriptionPresent()) throw new InvalidRequestException("At least one of title or description must be supplied");
         if (request.isTitlePresent()) {
@@ -114,7 +117,7 @@ public class PullRequestService {
         pullRequests.lockById(id).orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
         PullRequest pr = findDetailed(id);
         access.requireReadable(repository, userId);
-        requireAuthorOrOwner(pr, userId);
+        requireAuthorOrMaintainer(pr, userId);
         if (pr.getState() == PullRequestState.MERGED) throw new RepositoryConflictException("Merged pull requests cannot be closed");
         if (pr.getState() == PullRequestState.CLOSED) return PullRequestResponse.from(pr);
         pr.setState(PullRequestState.CLOSED);
@@ -130,7 +133,7 @@ public class PullRequestService {
         pullRequests.lockById(id).orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
         PullRequest pr = findDetailed(id);
         access.requireReadable(repository, userId);
-        access.requireOwner(repository, userId);
+        requireAuthorOrMaintainer(pr, userId);
         if (pr.getState() == PullRequestState.MERGED) throw new RepositoryConflictException("Merged pull requests cannot be reopened");
         if (pr.getState() == PullRequestState.OPEN) return PullRequestResponse.from(pr);
         validatePair(repository.getId(), pr.getSourceBranch(), pr.getTargetBranch());
@@ -151,9 +154,9 @@ public class PullRequestService {
     private PullRequest findDetailed(Long id) {
         return pullRequests.findDetailedById(id).orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
     }
-    private void requireAuthorOrOwner(PullRequest pr, Long userId) {
-        if (userId == null || (!pr.getAuthor().getId().equals(userId) && !access.isOwner(pr.getRepository(), userId))) {
-            throw new ResourceForbiddenException("Only the pull request author or repository owner can perform this action");
+    private void requireAuthorOrMaintainer(PullRequest pr, Long userId) {
+        if (userId == null || (!pr.getAuthor().getId().equals(userId) && !access.hasMaintain(pr.getRepository(), userId))) {
+            throw new ResourceForbiddenException("Only the pull request author or a repository maintainer can perform this action");
         }
     }
     private void validatePair(Long repositoryId, Branch source, Branch target) {
