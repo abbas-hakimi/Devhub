@@ -6,6 +6,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -134,6 +138,30 @@ class BranchManagementIntegrationTests {
                 .andExpect(status().isNotFound());
         mvc.perform(get("/api/branches/" + privateBranchId.longValue()).header("Authorization", bearer(owner)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void concurrentCreationOfTheSameBranchNameHasOneWinner() throws Exception {
+        TestAccount owner = register("branchrace");
+        long repositoryId = createRepository(owner, "PUBLIC");
+        initialize(owner, repositoryId);
+        String url = "/api/repositories/" + repositoryId + "/branches";
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> createAfter(start, url, owner));
+            var second = executor.submit(() -> createAfter(start, url, owner));
+            start.countDown();
+            List<Integer> statuses = List.of(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
+            org.assertj.core.api.Assertions.assertThat(statuses).containsExactlyInAnyOrder(201, 409);
+        }
+        org.assertj.core.api.Assertions.assertThat(branches.countByRepository_IdAndName(repositoryId, "race-name"))
+                .isEqualTo(1);
+    }
+
+    private int createAfter(CountDownLatch start, String url, TestAccount owner) throws Exception {
+        if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("branch requests did not start");
+        return mvc.perform(post(url).header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"race-name\"}")).andReturn().getResponse().getStatus();
     }
 
     private long createRepository(TestAccount account, String visibility) throws Exception {

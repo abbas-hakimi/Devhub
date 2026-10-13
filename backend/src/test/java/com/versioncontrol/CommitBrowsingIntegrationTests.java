@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.jayway.jsonpath.JsonPath;
 import com.versioncontrol.entity.Branch;
@@ -29,6 +32,7 @@ import com.versioncontrol.versioncontrol.hash.Sha256Hasher;
 class CommitBrowsingIntegrationTests {
     @Autowired MockMvc mvc;
     @Autowired BranchRepository branches;
+    @Value("${version-control.storage.root}") String storageRoot;
 
     @Test
     void publicCommitHistoryTreePathsAndBlobStreamingWork() throws Exception {
@@ -144,6 +148,25 @@ class CommitBrowsingIntegrationTests {
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/repositories/{id}/commits", repositoryId).param("page", "10").param("size", "100"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refusesToServeAChangedBlobBeforeReturningItsOriginalEtag() throws Exception {
+        Account owner = register("corruptblobowner");
+        long repositoryId = createRepository(owner, "PUBLIC");
+        initialize(owner, repositoryId);
+        commit(owner, repositoryId, "Blob to corrupt", "[{\"path\":\"file.txt\",\"content\":\"original\"}]");
+        String hash = head(repositoryId);
+        byte[] original = "original".getBytes(StandardCharsets.UTF_8);
+        String blobHash = Sha256Hasher.hashBytes(original);
+        Path object = Path.of(storageRoot, "objects", blobHash.substring(0, 2), blobHash.substring(2));
+        Files.write(object, "changed!".getBytes(StandardCharsets.UTF_8));
+        try {
+            mvc.perform(get("/api/commits/{hash}/blob/file.txt", hash))
+                    .andExpect(status().isInternalServerError());
+        } finally {
+            Files.write(object, original);
+        }
     }
 
     private void commit(Account owner, long repositoryId, String message, String changes) throws Exception {

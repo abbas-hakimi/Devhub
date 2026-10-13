@@ -112,6 +112,20 @@ class LocalFileObjectStorageTests {
     }
 
     @Test
+    void rejectsCorruptionOnPreflightVerificationAndWhenAReadReachesEof() throws Exception {
+        byte[] original = {9, 8, 7, 6};
+        String hash = Sha256Hasher.hashBytes(original);
+        storage.write(hash, new ByteArrayInputStream(original), original.length);
+        Path object = root.resolve("objects").resolve(hash.substring(0, 2)).resolve(hash.substring(2));
+        Files.write(object, new byte[] {1, 2, 3, 4});
+
+        assertThatThrownBy(() -> storage.verify(hash, original.length))
+                .isInstanceOf(ObjectCorruptionException.class).hasMessageContaining("corrupt");
+        assertThatThrownBy(() -> storage.read(hash).readAllBytes())
+                .isInstanceOf(ObjectCorruptionException.class).hasMessageContaining("content hash");
+    }
+
+    @Test
     void streamsLargeContentAcrossShortReads() throws Exception {
         byte[] bytes = new byte[700_123];
         new Random(12345).nextBytes(bytes);

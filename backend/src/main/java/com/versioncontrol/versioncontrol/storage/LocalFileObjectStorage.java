@@ -2,6 +2,7 @@ package com.versioncontrol.versioncontrol.storage;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -125,11 +126,28 @@ public final class LocalFileObjectStorage implements ObjectStorage {
                 throw new ObjectCorruptionException("object path must not be a symbolic link: " + objectHash);
             }
             if (!Files.isRegularFile(path)) throw new ObjectNotFoundException(objectHash);
-            return new BufferedInputStream(Files.newInputStream(path));
+            return new VerifyingInputStream(new BufferedInputStream(Files.newInputStream(path)), objectHash);
         } catch (ObjectStorageException exception) {
             throw exception;
         } catch (IOException exception) {
             throw new ObjectStorageException("Unable to read object " + objectHash, exception);
+        }
+    }
+
+    @Override
+    public void verify(String objectHash, long expectedSize) {
+        Path path = objectPath(objectHash);
+        try {
+            ensureSafeDirectory(path.getParent());
+            if (Files.isSymbolicLink(path)) {
+                throw new ObjectCorruptionException("object path must not be a symbolic link: " + objectHash);
+            }
+            if (!Files.isRegularFile(path)) throw new ObjectNotFoundException(objectHash);
+            verifyExisting(path, objectHash, expectedSize);
+        } catch (ObjectStorageException exception) {
+            throw exception;
+        } catch (IOException exception) {
+            throw new ObjectStorageException("Unable to verify object " + objectHash, exception);
         }
     }
 
@@ -211,6 +229,60 @@ public final class LocalFileObjectStorage implements ObjectStorage {
             return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("SHA-256 is not available", impossible);
+        }
+    }
+
+    /** Detects changes after the preflight verify without buffering the object in memory. */
+    private static final class VerifyingInputStream extends FilterInputStream {
+        private final String expectedHash;
+        private final MessageDigest digest = sha256();
+        private boolean verified;
+
+        private VerifyingInputStream(InputStream input, String expectedHash) {
+            super(input);
+            this.expectedHash = expectedHash;
+        }
+
+        @Override
+        public int read() throws IOException {
+            int value = in.read();
+            if (value < 0) verifyEnd();
+            else digest.update((byte) value);
+            return value;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            int count = in.read(buffer, offset, length);
+            if (count < 0) verifyEnd();
+            else if (count > 0) digest.update(buffer, offset, count);
+            return count;
+        }
+
+        @Override
+        public long skip(long amount) throws IOException {
+            if (amount <= 0) return 0;
+            byte[] discarded = new byte[(int) Math.min(BUFFER_SIZE, amount)];
+            long skipped = 0;
+            while (skipped < amount) {
+                int count = read(discarded, 0, (int) Math.min(discarded.length, amount - skipped));
+                if (count < 0) break;
+                skipped += count;
+            }
+            return skipped;
+        }
+
+        @Override public boolean markSupported() { return false; }
+        @Override public synchronized void mark(int readLimit) { }
+        @Override public synchronized void reset() throws IOException { throw new IOException("mark/reset is not supported"); }
+
+        private void verifyEnd() {
+            if (verified) return;
+            verified = true;
+            String actual = HEX.formatHex(digest.digest());
+            if (!actual.equals(expectedHash)) {
+                throw new ObjectCorruptionException("streamed object does not match its content hash: " + expectedHash);
+            }
         }
     }
 }

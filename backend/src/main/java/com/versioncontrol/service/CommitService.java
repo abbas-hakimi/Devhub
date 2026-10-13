@@ -53,6 +53,7 @@ public class CommitService {
     private static final String MAIN_BRANCH = "main";
     private static final int MAX_FILE_BYTES = 1_000_000;
     private static final int MAX_TOTAL_BYTES = 10_000_000;
+    private static final int MAX_PATH_DEPTH = 64;
 
     private final RepositoryRepository repositories;
     private final BranchRepository branches;
@@ -260,6 +261,9 @@ public class CommitService {
             throw new InvalidRequestException("Path must be a relative slash-separated file path");
         }
         String[] rawSegments = path.split("/", -1);
+        if (rawSegments.length > MAX_PATH_DEPTH) {
+            throw new InvalidRequestException("Path exceeds the maximum nesting depth");
+        }
         List<String> segments = new ArrayList<>(rawSegments.length);
         for (String raw : rawSegments) {
             String segment = Normalizer.normalize(raw, Normalizer.Form.NFC);

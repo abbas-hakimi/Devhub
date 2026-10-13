@@ -8,5 +8,8 @@ public interface ObjectStorage {
 
     InputStream read(String objectHash);
 
+    /** Verify an object's bytes and size using bounded-memory streaming before serving metadata. */
+    void verify(String objectHash, long expectedSize);
+
     boolean exists(String objectHash);
 }

@@ -142,7 +142,17 @@ class CommitEngineIntegrationTests {
                 .content("{\"branch\":\"main\",\"message\":\"conflict\",\"changes\":[{\"path\":\"a.txt\",\"content\":\"b\"}],\"deletedPaths\":[\"a.txt\"]}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(post(url).header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"branch\":\"main\",\"message\":\"normalized collision\",\"changes\":["
+                        + "{\"path\":\"\u00e9.txt\",\"content\":\"one\"},"
+                        + "{\"path\":\"e\u0301.txt\",\"content\":\"two\"}]}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post(url).header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"branch\":\"main\",\"message\":\"bad path\",\"changes\":[{\"path\":\"../escape\",\"content\":\"b\"}]}"))
+                .andExpect(status().isBadRequest());
+        String tooDeepPath = String.join("/", java.util.Collections.nCopies(65, "x"));
+        mvc.perform(post(url).header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"branch\":\"main\",\"message\":\"deep path\",\"changes\":[{\"path\":\""
+                        + tooDeepPath + "\",\"content\":\"b\"}]}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(post(url).header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"branch\":\"main\",\"message\":\"missing delete\",\"deletedPaths\":[\"missing\"]}"))
@@ -202,6 +212,40 @@ class CommitEngineIntegrationTests {
         }
         assertThat(commits.countByRepository_Id(repositoryId)).isEqualTo(2);
         assertThat(main(repositoryId).getHeadCommit().getParentCommit().getCommitHash()).isEqualTo(expected);
+    }
+
+    @Test
+    void branchesKeepIndependentHeadsAndHistoriesAfterFeatureCommit() throws Exception {
+        Account owner = register("branchisolation");
+        long repositoryId = repository(owner, "branch-isolation", "PUBLIC");
+        init(owner, repositoryId);
+        String initial = main(repositoryId).getHeadCommit().getCommitHash();
+        mvc.perform(post("/api/repositories/" + repositoryId + "/branches")
+                .header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"feature\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.headCommit.commitHash").value(initial));
+
+        String featureBody = "{\"branch\":\"feature\",\"expectedHeadHash\":\"" + initial
+                + "\",\"message\":\"Feature only\",\"changes\":[{\"path\":\"feature.txt\",\"content\":\"feature\"}]}";
+        String created = mvc.perform(post(commitUrl(repositoryId)).header("Authorization", bearer(owner))
+                .contentType(MediaType.APPLICATION_JSON).content(featureBody))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String featureHash = JsonPath.read(created, "$.commitHash");
+
+        assertThat(main(repositoryId).getHeadCommit().getCommitHash()).isEqualTo(initial);
+        var featureBranchId = branches.findByRepository_IdAndName(repositoryId, "feature").orElseThrow().getId();
+        var featureBranch = branches.findWithDetailsById(featureBranchId).orElseThrow();
+        assertThat(featureBranch.getHeadCommit().getCommitHash()).isEqualTo(featureHash);
+        assertThat(featureBranch.getHeadCommit().getParentCommit().getCommitHash()).isEqualTo(initial);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                "/api/repositories/" + repositoryId + "/commits").param("branch", "feature"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.commits.length()").value(2))
+                .andExpect(jsonPath("$.commits[0].commitHash").value(featureHash));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                "/api/repositories/" + repositoryId + "/commits").param("branch", "main"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.commits.length()").value(1))
+                .andExpect(jsonPath("$.commits[0].commitHash").value(initial));
+        assertThat(commits.findByCommitHash(featureHash).orElseThrow().getRepository().getId()).isEqualTo(repositoryId);
     }
 
     private MvcResult performAfter(CountDownLatch start, String url, Account owner, String body) throws Exception {

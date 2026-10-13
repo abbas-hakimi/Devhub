@@ -35,6 +35,7 @@ public class CommitBrowsingService {
     private static final int MAX_PAGE_SIZE = 100;
     // MySQL's default recursive CTE depth is 1,000. Keep the deepest fetched row below that limit.
     private static final int MAX_HISTORY_DEPTH = 999;
+    private static final int MAX_PATH_DEPTH = 64;
 
     private final BranchRepository branches;
     private final CommitRepository commits;
@@ -121,6 +122,7 @@ public class CommitBrowsingService {
                 }
                 var blob = entry.getBlob();
                 if (!storage.exists(blob.getObjectHash())) throw new ObjectNotFoundException(blob.getObjectHash());
+                storage.verify(blob.getObjectHash(), blob.getSize());
                 return new BlobMetadata(blob.getObjectHash(), blob.getSize());
             }
         }
@@ -177,6 +179,9 @@ public class CommitBrowsingService {
             throw new InvalidRequestException("Path must be a relative slash-separated path");
         }
         String[] segments = path.split("/", -1);
+        if (segments.length > MAX_PATH_DEPTH) {
+            throw new InvalidRequestException("Path exceeds the maximum nesting depth");
+        }
         for (int i = 0; i < segments.length; i++) {
             segments[i] = Normalizer.normalize(segments[i], Normalizer.Form.NFC);
             if (!TreeEntryNameValidator.isValidName(segments[i])) {
