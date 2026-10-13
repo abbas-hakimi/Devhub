@@ -13,6 +13,9 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
 
     Optional<Commit> findByCommitHash(String commitHash);
 
+    @Query("select c.parentCommit.id from Commit c where c.repository.id = :repositoryId and c.id = :commitId")
+    Optional<Long> findParentId(@Param("repositoryId") Long repositoryId, @Param("commitId") Long commitId);
+
     @EntityGraph(attributePaths = {"repository", "repository.owner", "author", "rootTree", "parentCommit"})
     Optional<Commit> findDetailedByCommitHash(String commitHash);
 
