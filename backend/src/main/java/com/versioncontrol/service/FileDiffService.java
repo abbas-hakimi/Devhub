@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.text.Normalizer;
 
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,9 @@ import com.versioncontrol.entity.TreeEntryType;
 import com.versioncontrol.exception.RepositoryConflictException;
 import com.versioncontrol.repository.TreeEntryRepository;
 import com.versioncontrol.versioncontrol.storage.ObjectStorage;
+import com.versioncontrol.entity.ReviewCommentSide;
+import com.versioncontrol.validation.TreeEntryNameValidator;
+import com.versioncontrol.exception.InvalidRequestException;
 
 @Service
 public class FileDiffService {
@@ -72,6 +76,44 @@ public class FileDiffService {
         int deletions = pageItems.stream().mapToInt(FileChangeResponse::deletions).sum();
         return new Result(List.copyOf(pageItems), collector.changes.size(), added, modified, deleted,
                 additions, deletions, collector.truncated);
+    }
+
+    public void validateInlineComment(Tree baseTree, Tree headTree, String path, int lineNumber, ReviewCommentSide side) {
+        if (path == null || path.isBlank() || path.length() > 1024 || path.startsWith("/") || path.endsWith("/")) {
+            throw new InvalidRequestException("Inline comment path is invalid");
+        }
+        String[] segments = path.split("/", -1);
+        for (String segment : segments) {
+            if (!TreeEntryNameValidator.isValidName(segment)
+                    || !Normalizer.isNormalized(segment, Normalizer.Form.NFC)) {
+                throw new InvalidRequestException("Inline comment path is invalid");
+            }
+        }
+        Blob oldBlob = resolveFile(baseTree, segments);
+        Blob newBlob = resolveFile(headTree, segments);
+        if (oldBlob == null && newBlob == null) throw new InvalidRequestException("Inline comment path is not a file in the pull request diff");
+        if (oldBlob != null && newBlob != null && oldBlob.getObjectHash().equals(newBlob.getObjectHash())) {
+            throw new InvalidRequestException("Inline comment path is not changed in the pull request diff");
+        }
+        Blob selected = side == ReviewCommentSide.OLD ? oldBlob : newBlob;
+        if (selected == null) throw new InvalidRequestException("Inline comment side does not exist for this file");
+        ReadResult content = read(selected);
+        if (content.binary || content.omitted) throw new InvalidRequestException("Inline comments require a supported text file");
+        int lines = lines(content.text).lines.size();
+        if (lineNumber < 1 || lineNumber > lines) throw new InvalidRequestException("Inline comment line is outside the selected file version");
+    }
+
+    private Blob resolveFile(Tree root, String[] segments) {
+        Tree current = root;
+        for (int i = 0; i < segments.length; i++) {
+            TreeEntry entry = entries.findByTree_IdAndName(current.getId(), segments[i]).orElse(null);
+            if (entry == null) return null;
+            boolean last = i == segments.length - 1;
+            if (last) return entry.getEntryType() == TreeEntryType.FILE ? entry.getBlob() : null;
+            if (entry.getEntryType() != TreeEntryType.DIRECTORY) return null;
+            current = entry.getChildTree();
+        }
+        return null;
     }
 
     private void walk(Tree base, Tree head, String prefix, int depth, Collector collector) {

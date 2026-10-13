@@ -6,13 +6,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.versioncontrol.entity.PullRequest;
 import com.versioncontrol.entity.PullRequestState;
+import jakarta.persistence.LockModeType;
 
 public interface PullRequestRepository extends JpaRepository<PullRequest, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from PullRequest p where p.id = :id")
+    Optional<PullRequest> lockById(@Param("id") Long id);
+
     @EntityGraph(attributePaths = {"repository", "repository.owner", "author", "sourceBranch", "sourceBranch.headCommit",
             "targetBranch", "targetBranch.headCommit", "sourceHeadCommitAtCreation", "targetHeadCommitAtCreation", "mergedBy"})
     Optional<PullRequest> findDetailedById(Long id);

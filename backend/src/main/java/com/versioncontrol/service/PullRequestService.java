@@ -111,6 +111,7 @@ public class PullRequestService {
         Long repositoryId = pullRequests.findRepositoryIdById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
         Repository repository = lockRepository(repositoryId);
+        pullRequests.lockById(id).orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
         PullRequest pr = findDetailed(id);
         access.requireReadable(repository, userId);
         requireAuthorOrOwner(pr, userId);
@@ -126,6 +127,7 @@ public class PullRequestService {
         Long repositoryId = pullRequests.findRepositoryIdById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
         Repository repository = lockRepository(repositoryId);
+        pullRequests.lockById(id).orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
         PullRequest pr = findDetailed(id);
         access.requireReadable(repository, userId);
         access.requireOwner(repository, userId);
