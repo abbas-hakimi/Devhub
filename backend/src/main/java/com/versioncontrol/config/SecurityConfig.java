@@ -66,8 +66,10 @@ public class SecurityConfig {
                                 "/api/auth/login"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/repositories").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/commits/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/repositories/{id:\\d+}",
+                                "/api/repositories/{repositoryId:\\d+}/commits",
                                 "/api/repositories/{repositoryId:\\d+}/issues",
                                 "/api/repositories/{repositoryId:\\d+}/labels",
                                 "/api/repositories/{repositoryId:\\d+}/milestones",

@@ -15,6 +15,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.versioncontrol.dto.ApiError;
+import com.versioncontrol.versioncontrol.storage.ObjectStorageException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -55,6 +56,11 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     ResponseEntity<ApiError> badCredentials(BadCredentialsException exception) { return response(HttpStatus.UNAUTHORIZED, "Invalid username/email or password", Map.of()); }
+
+    @ExceptionHandler(ObjectStorageException.class)
+    ResponseEntity<ApiError> storageFailure(ObjectStorageException exception) {
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "Stored object is unavailable", Map.of());
+    }
 
     private ResponseEntity<ApiError> response(HttpStatus status, String error, Map<String, String> fields) {
         return ResponseEntity.status(status).body(new ApiError(Instant.now(), status.value(), error, fields));
