@@ -70,6 +70,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/repositories/{id:\\d+}",
                                 "/api/repositories/{repositoryId:\\d+}/commits",
+                                "/api/repositories/{repositoryId:\\d+}/compare",
                                 "/api/repositories/{repositoryId:\\d+}/pull-requests",
                                 "/api/repositories/{repositoryId:\\d+}/issues",
                                 "/api/repositories/{repositoryId:\\d+}/labels",
@@ -79,7 +80,8 @@ public class SecurityConfig {
                                 "/api/milestones/{milestoneId:\\d+}",
                                 "/api/issues/{issueId:\\d+}",
                                 "/api/issues/{issueId:\\d+}/comments",
-                                "/api/pull-requests/{pullRequestId:\\d+}"
+                                "/api/pull-requests/{pullRequestId:\\d+}",
+                                "/api/pull-requests/{pullRequestId:\\d+}/diff"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
