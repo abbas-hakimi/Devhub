@@ -1,2 +1,5 @@
 backend/src/main/resources/application.properties
 backend/target/
+
+__pycache__/
+*.pyc
