@@ -1,0 +1,5 @@
+package com.versioncontrol.dto.discussion;
+
+import java.util.List;
+public record DiscussionReplyPageResponse(int page, int size, long totalElements, int totalPages, boolean hasNext,
+        List<DiscussionReplyResponse> items) { }

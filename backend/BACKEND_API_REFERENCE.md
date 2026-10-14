@@ -121,6 +121,34 @@ Create a release with `{"tagName":"v1.2.3","title":"Version 1.2.3","description"
 
 An issue's `milestoneId` is optional and presence-aware during updates: omitted means unchanged; `null` clears it. Assignment to a milestone in another repository is rejected. Milestone title uniqueness is case-insensitive after trimming within one repository.
 
+### Repository discussions
+
+| Method and path | Access | Purpose |
+|---|---|---|
+| `GET /api/repositories/{id}/discussions?page=0&size=20` | Public repository read; authorized member for private | Paginated discussion list, newest discussion number first |
+| `POST /api/repositories/{id}/discussions` | `WRITE`, `MAINTAIN`, or owner; announcements require `MAINTAIN`/owner | Create a discussion |
+| `GET /api/discussions/{discussionId}` | Public repository read; authorized member for private | Read a discussion and reaction counts |
+| `PATCH /api/discussions/{discussionId}` | Discussion author, `MAINTAIN`, or owner | Partially update title/body |
+| `POST /api/discussions/{discussionId}/close` | Discussion author, `MAINTAIN`, or owner | Close the discussion |
+| `POST /api/discussions/{discussionId}/reopen` | Discussion author, `MAINTAIN`, or owner | Reopen while retaining its history |
+| `DELETE /api/discussions/{discussionId}` | `MAINTAIN` or owner | Delete discussion, replies, and reactions |
+| `GET /api/discussions/{discussionId}/replies?page=0&size=20` | Public repository read; authorized member for private | Paginated replies, oldest first |
+| `POST /api/discussions/{discussionId}/replies` | `WRITE`, `MAINTAIN`, or owner | Add a reply or one-level child reply |
+| `PATCH /api/discussion-replies/{replyId}` | Reply author, `MAINTAIN`, or owner | Edit reply body |
+| `DELETE /api/discussion-replies/{replyId}` | Reply author, `MAINTAIN`, or owner | Delete reply if it has no children |
+| `POST /api/discussions/{discussionId}/reactions` | Authenticated repository reader | Add reaction (`{"type":"HEART"}`) |
+| `DELETE /api/discussions/{discussionId}/reactions?type=HEART` | Authenticated repository reader | Remove caller's reaction of that type |
+| `POST /api/discussion-replies/{replyId}/reactions` | Authenticated repository reader | Add reply reaction (`{"type":"ROCKET"}`) |
+| `DELETE /api/discussion-replies/{replyId}/reactions?type=ROCKET` | Authenticated repository reader | Remove caller's reply reaction |
+| `PUT /api/discussions/{discussionId}/accepted-answer` | Discussion author, `MAINTAIN`, or owner; Q&A only | Set `{"replyId":123}` as accepted answer |
+| `DELETE /api/discussions/{discussionId}/accepted-answer` | Discussion author, `MAINTAIN`, or owner | Clear accepted answer |
+
+Discussion categories are `GENERAL`, `Q_AND_A`, `IDEAS`, and `ANNOUNCEMENTS`; state is `OPEN` or `CLOSED`. Create payloads contain `category`, `title` (1–255 characters), and Markdown `body` (1–64,000 characters). PATCH accepts a non-empty subset of `title` and `body`. Reply bodies are limited to 16,000 characters and accept an optional `parentReplyId`; nesting is limited to one child level. Closed discussions reject new replies with `409`.
+
+Accepted answers can only be set on Q&A discussions and must reference a reply in that same discussion. Deleting the accepted reply clears the reference. Replies with children cannot be deleted; delete child replies first. Deleting a discussion removes its replies and reactions after clearing its accepted answer. Categories, state, reply-parent, accepted-answer, and reaction type constraints are also enforced by V10 foreign keys/checks and unique indexes.
+
+Reaction types are `THUMBS_UP`, `HEART`, `CELEBRATE`, and `ROCKET`. Each authenticated user can have at most one reaction of each type per discussion or reply. Repeated addition is idempotent, and removal affects only the caller's reaction. Discussion and reply responses include zero-filled reaction counts. Private resource reads return `404` to users without access; mutation attempts by visible non-members return `403`, and missing resources return `404`.
+
 ### Pull requests and reviews
 
 | Method and path | Access | Purpose |
