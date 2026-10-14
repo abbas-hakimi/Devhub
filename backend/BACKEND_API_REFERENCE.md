@@ -76,6 +76,24 @@ Collaborator roles are `READ`, `WRITE`, and `MAINTAIN`. Ownership remains with t
 
 Commit changes accept a path and exactly one of UTF-8 `content` or Base64 `contentBase64`; deletions use `deletedPaths`. Each file is limited to 1 MB and total replacement content to 10 MB. Paths are relative slash-separated paths, validated against traversal, invalid segments, and a maximum depth. Expected HEAD hashes prevent lost updates; stale values return `409`.
 
+### Tags and releases
+
+| Method and path | Access | Purpose |
+|---|---|---|
+| `POST /api/repositories/{id}/tags` | Write | Create an immutable tag at a commit in the same repository |
+| `GET /api/repositories/{id}/tags` | Repository read | Paginated tag list (`page`, `size`) |
+| `GET /api/repositories/{id}/tags/{name}` | Repository read | Read tag details |
+| `DELETE /api/repositories/{id}/tags/{name}` | Maintainer/owner | Delete an unreferenced tag |
+| `POST /api/repositories/{id}/releases` | Maintainer/owner | Create a release for a repository tag |
+| `GET /api/repositories/{id}/releases` | Repository read | Paginated releases (`page`, `size`); drafts are visible only to maintainers/owners |
+| `GET /api/repositories/{id}/releases/{releaseId}` | Repository read | Read published release; drafts are visible only to maintainers/owners |
+| `PATCH /api/repositories/{id}/releases/{releaseId}` | Maintainer/owner | Partially update release metadata or publication state |
+| `DELETE /api/repositories/{id}/releases/{releaseId}` | Maintainer/owner | Delete a release without deleting its tag |
+
+Create a tag with `{"name":"v1.2.3","commitHash":"<commit hash>"}`. Tag names are single path segments, limited to 255 characters, and unique within a repository. They cannot contain separators, traversal segments, or Git's reserved `.lock` suffix. Tags are immutable after creation. A tag must point to a commit in the same repository. Deleting a tag still referenced by a release returns `409`.
+
+Create a release with `{"tagName":"v1.2.3","title":"Version 1.2.3","description":"Release notes","draft":true,"prerelease":false}`. `draft` defaults to `true`; `prerelease` defaults to `false`. A repository can have at most one release per tag. `PATCH` accepts any non-empty subset of `title`, `description`, `draft`, and `prerelease`; omitted fields remain unchanged. A release's `publishedAt` is set when it becomes published, retained for edits while published, and cleared when it returns to draft. Releases and tags use standard page envelopes with `items`, `page`, `size`, and `totalElements`.
+
 ### Issues, labels, and milestones
 
 | Method and path | Access | Purpose |
