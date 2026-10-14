@@ -14,10 +14,15 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.versioncontrol.security.JwtAuthenticationFilter;
 import com.versioncontrol.security.RestAuthenticationEntryPoint;
 import com.versioncontrol.security.VersionControlUserDetailsService;
+import com.versioncontrol.security.TrustedOriginPolicy;
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -48,10 +53,12 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
-            AuthenticationProvider authenticationProvider
+            AuthenticationProvider authenticationProvider,
+            CorsConfigurationSource corsConfigurationSource
     ) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -63,7 +70,9 @@ public class SecurityConfig {
                                 "/api/health",
                                 "/actuator/health",
                                 "/api/auth/register",
-                                "/api/auth/login"
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/repositories").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/commits/**").permitAll()
@@ -112,6 +121,19 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(TrustedOriginPolicy origins) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.copyOf(origins.origins()));
+        configuration.setAllowCredentials(true);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+        configuration.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
 

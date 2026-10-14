@@ -22,9 +22,12 @@ public class AuthenticationService {
     private final PasswordEncoder encoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final RefreshSessionService refreshSessions;
 
-    public AuthenticationService(UserRepository users, PasswordEncoder encoder, AuthenticationManager authenticationManager, JwtService jwtService) {
-        this.users = users; this.encoder = encoder; this.authenticationManager = authenticationManager; this.jwtService = jwtService;
+    public AuthenticationService(UserRepository users, PasswordEncoder encoder, AuthenticationManager authenticationManager,
+            JwtService jwtService, RefreshSessionService refreshSessions) {
+        this.users = users; this.encoder = encoder; this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService; this.refreshSessions = refreshSessions;
     }
 
     @Transactional
@@ -40,11 +43,14 @@ public class AuthenticationService {
         return new AuthResponse(jwtService.generateAccessToken(principal), "Bearer", jwtService.getExpirationSeconds(), UserResponse.from(user));
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public LoginSessionResult login(LoginRequest request, String userAgent) {
         Authentication auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.identifier().trim(), request.password()));
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
-        return new AuthResponse(jwtService.generateAccessToken(principal), "Bearer", jwtService.getExpirationSeconds(),
-                users.findById(principal.getId()).map(UserResponse::from).orElseThrow());
+        User user = users.findById(principal.getId()).orElseThrow();
+        RefreshSessionService.IssuedToken refresh = refreshSessions.createSession(user.getId(), userAgent);
+        AuthResponse response = new AuthResponse(jwtService.generateAccessToken(principal), "Bearer",
+                jwtService.getExpirationSeconds(), UserResponse.from(user));
+        return new LoginSessionResult(response, refresh.token(), refresh.expiresAt());
     }
 
     @Transactional(readOnly = true)

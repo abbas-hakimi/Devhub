@@ -8,6 +8,43 @@ Register at `POST /api/auth/register`, then log in at `POST /api/auth/login`. Pr
 
 Public repository reads are available without a token. Private repository reads are available to the owner and accepted collaborators. An inaccessible private repository is reported as `404` so its existence is not disclosed. Writes require an accepted collaborator role or ownership as described below. Owner-only actions include repository settings/deletion, collaborator administration, and milestone management. Merge operations require repository owner or `MAINTAIN`; a current approval from a reviewer other than the PR author is also required.
 
+## Refresh-token sessions (Phase 11B)
+
+Access tokens remain JWT Bearer tokens. `POST /api/auth/login` keeps the existing `{ "identifier": "username-or-email", "password": "..." }` request and returns the existing access-token JSON (`accessToken`, `tokenType`, `expiresInSeconds`, and `user`). It also sets a host-only `DEVHUB_REFRESH` cookie (configurable name) with `HttpOnly`, `Path=/api/auth`, `SameSite=Lax`, and the configured `Secure` flag. The refresh token is never included in JSON. Login responses use `Cache-Control: no-store`.
+
+| Method and path | Access | Purpose |
+|---|---|---|
+| `POST /api/auth/register` | Anonymous | Create account; existing response remains compatible |
+| `POST /api/auth/login` | Anonymous | Issue access JWT and refresh cookie |
+| `POST /api/auth/refresh` | Refresh cookie + trusted Origin/Referer | Atomically rotate refresh token and issue a new access JWT |
+| `POST /api/auth/logout` | Refresh cookie + trusted Origin/Referer | Revoke the cookie's session and clear cookie; repeat is safe |
+| `POST /api/auth/logout-all` | Access JWT + trusted Origin/Referer | Revoke all caller refresh sessions and clear cookie |
+| `GET /api/auth/sessions` | Access JWT | List caller sessions and bounded user-agent metadata |
+| `DELETE /api/auth/sessions/{sessionId}` | Access JWT; own session | Revoke one caller session; another user's session returns `404` |
+| `GET /api/auth/me` | Access JWT | Return the authenticated user |
+
+Refresh success returns the same access-token JSON shape as login and replaces the cookie. Missing, malformed, expired, revoked, or replayed refresh credentials return a generic `401` error. Invalid origins return `403`; no Origin and no trusted Referer is rejected for cookie-authenticated state changes. Session list responses contain `sessionId`, `createdAt`, `expiresAt`, `lastActivityAt`, `revokedAt`, `revocationReason`, and bounded `userAgent`; token hashes and values are never returned.
+
+Refresh tokens contain 256 bits of cryptographically secure random data. The database stores SHA-256 hashes in token history, rotates under a pessimistic session lock, and retains consumed hashes for replay detection. Concurrent uses serialize; only the first rotation can return a replacement. Reuse revokes the session family. Logout and refresh use the same session lock order. V14 adds `refresh_sessions` and `refresh_token_history` without changing earlier migrations. Expired history is purged periodically.
+
+Cookie settings use `AUTH_REFRESH_COOKIE`, `AUTH_REFRESH_COOKIE_PATH`, `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAME_SITE`, `REFRESH_TOKEN_TTL`, and `REFRESH_TOKEN_REPLAY_RETENTION`. `SameSite=None` requires `AUTH_COOKIE_SECURE=true`. `FRONTEND_ORIGINS` is a comma-separated list of exact origins, such as `https://app.example.com`; wildcard origins are rejected. CORS allows credentials only from those origins. Local React development defaults to `http://localhost:3000` and `AUTH_COOKIE_SECURE=false` so HTTP localhost works. Production should use HTTPS and a Secure cookie.
+
+Set `JWT_SECRET` to a strong Base64-encoded key and provide `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` through the environment. No production secret or database password is embedded in application configuration. `ACCESS_TOKEN_TTL` defaults to `PT15M`; refresh-token lifetime and replay retention default to `PT720H`.
+
+React should keep the access JWT in memory and send it as `Authorization: Bearer ...`. Use credentialed refresh requests so the browser sends the HttpOnly cookie; JavaScript must not read the refresh token:
+
+```js
+const refreshed = await fetch("http://localhost:8080/api/auth/refresh", {
+  method: "POST",
+  credentials: "include",
+});
+if (!refreshed.ok) throw new Error("Sign in again");
+const { accessToken } = await refreshed.json();
+// Keep accessToken in memory and use it as a Bearer token.
+```
+
+Send logout/logout-all with `credentials: "include"` and a trusted frontend origin; logout-all also needs the access Bearer token. Revoking a refresh session prevents future refreshes but does not immediately invalidate an already issued stateless access JWT. Access-token revocation is not implemented. Login itself does not require an Origin header; cookie-authenticated state-changing endpoints require a trusted Origin or trusted Referer.
+
 ## Error response
 
 Application and authentication errors use:
