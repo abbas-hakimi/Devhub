@@ -21,16 +21,23 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
         Long getId();
         Long getParentId();
         Long getParentRepositoryId();
+        Long getSecondParentId();
+        Long getSecondParentRepositoryId();
         String getCommitHash();
     }
 
     @Query("select c.id as id, parent.id as parentId, parentRepository.id as parentRepositoryId, " +
+            "secondParent.id as secondParentId, secondParentRepository.id as secondParentRepositoryId, " +
             "c.commitHash as commitHash from Commit c left join c.parentCommit parent " +
-            "left join parent.repository parentRepository where c.repository.id = :repositoryId")
+            "left join parent.repository parentRepository left join c.secondParentCommit secondParent " +
+            "left join secondParent.repository secondParentRepository where c.repository.id = :repositoryId")
     List<LineageRow> findAllLineageByRepository_Id(@Param("repositoryId") Long repositoryId);
 
     @EntityGraph(attributePaths = {"repository", "repository.owner", "author", "rootTree", "parentCommit"})
     Optional<Commit> findDetailedByCommitHash(String commitHash);
+
+    @EntityGraph(attributePaths = {"repository", "author", "rootTree", "parentCommit", "secondParentCommit"})
+    Optional<Commit> findDetailedById(Long id);
 
     interface HistoryRow {
         String getCommitHash();

@@ -156,4 +156,13 @@ public class PullRequest {
     public void setClosedAt(LocalDateTime closedAt) { this.closedAt = closedAt; }
     public LocalDateTime getMergedAt() { return mergedAt; }
     public User getMergedBy() { return mergedBy; }
+    public Long getSourceBranchId() { return sourceBranchId; }
+    public Long getTargetBranchId() { return targetBranchId; }
+    public void markMerged(User user, LocalDateTime at) {
+        if (user == null || at == null) throw new IllegalArgumentException("merge actor and timestamp are required");
+        this.state = PullRequestState.MERGED;
+        this.mergedBy = user;
+        this.mergedAt = at;
+        this.closedAt = null;
+    }
 }

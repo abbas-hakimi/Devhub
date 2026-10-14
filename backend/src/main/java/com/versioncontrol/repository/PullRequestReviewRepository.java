@@ -17,6 +17,7 @@ public interface PullRequestReviewRepository extends JpaRepository<PullRequestRe
     @EntityGraph(attributePaths = {"reviewer", "pullRequest"})
     List<PullRequestReview> findByPullRequest_IdOrderByCreatedAtAscIdAsc(Long pullRequestId);
 
+
     @EntityGraph(attributePaths = {"reviewer", "pullRequest"})
     Optional<PullRequestReview> findDetailedByIdAndPullRequest_Id(Long id, Long pullRequestId);
 

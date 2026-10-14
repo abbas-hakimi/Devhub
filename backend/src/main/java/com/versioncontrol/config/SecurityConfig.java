@@ -84,6 +84,7 @@ public class SecurityConfig {
                                 "/api/pull-requests/{pullRequestId:\\d+}/diff",
                                 "/api/pull-requests/{pullRequestId:\\d+}/reviews",
                                 "/api/pull-requests/{pullRequestId:\\d+}/review-status",
+                                "/api/pull-requests/{pullRequestId:\\d+}/mergeability",
                                 "/api/pull-requests/{pullRequestId:\\d+}/comments"
                         ).permitAll()
                         .anyRequest().authenticated()

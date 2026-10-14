@@ -10,6 +10,7 @@ import java.time.temporal.ChronoUnit;
 /** Canonical v1 commit encoding. No clock or persistence access is performed here. */
 public final class CommitCanonicalizer {
     private static final byte[] PREFIX = "VC-COMMIT\0v1".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] MERGE_PREFIX = "VC-COMMIT\0v2-merge".getBytes(StandardCharsets.US_ASCII);
 
     private CommitCanonicalizer() { }
 
@@ -60,5 +61,49 @@ public final class CommitCanonicalizer {
     public static String hash(long repositoryId, String parentCommitHash, String rootTreeHash,
             long authorId, Instant createdAt, String message) {
         return Sha256Hasher.hashBytes(canonicalize(repositoryId, parentCommitHash, rootTreeHash, authorId, createdAt, message));
+    }
+
+    /** Canonical v2 encoding used only for true two-parent merge commits. */
+    public static byte[] canonicalizeMerge(long repositoryId, String firstParentHash, String secondParentHash,
+            String rootTreeHash, long authorId, Instant createdAt, String message) {
+        if (repositoryId <= 0 || authorId <= 0) throw new IllegalArgumentException("repository and author IDs must be positive");
+        if (firstParentHash == null || secondParentHash == null || firstParentHash.equals(secondParentHash)) {
+            throw new IllegalArgumentException("two distinct parent hashes are required");
+        }
+        byte[] firstParent = Sha256Hasher.hashBytesFromHex(firstParentHash);
+        byte[] secondParent = Sha256Hasher.hashBytesFromHex(secondParentHash);
+        byte[] root = Sha256Hasher.hashBytesFromHex(rootTreeHash);
+        if (createdAt == null || message == null) throw new IllegalArgumentException("timestamp and message are required");
+        Instant precise = createdAt.truncatedTo(ChronoUnit.MICROS);
+        long micros;
+        try {
+            micros = Math.addExact(Math.multiplyExact(precise.getEpochSecond(), 1_000_000L), precise.getNano() / 1_000L);
+        } catch (ArithmeticException overflow) {
+            throw new IllegalArgumentException("timestamp is outside supported epoch-microsecond range", overflow);
+        }
+        byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(bytes);
+            out.write(MERGE_PREFIX);
+            out.writeLong(repositoryId);
+            out.write(firstParent);
+            out.write(secondParent);
+            out.write(root);
+            out.writeLong(authorId);
+            out.writeLong(micros);
+            out.writeInt(messageBytes.length);
+            out.write(messageBytes);
+            out.flush();
+            return bytes.toByteArray();
+        } catch (IOException impossible) {
+            throw new IllegalStateException("in-memory merge commit encoding failed", impossible);
+        }
+    }
+
+    public static String hashMerge(long repositoryId, String firstParentHash, String secondParentHash,
+            String rootTreeHash, long authorId, Instant createdAt, String message) {
+        return Sha256Hasher.hashBytes(canonicalizeMerge(repositoryId, firstParentHash, secondParentHash,
+                rootTreeHash, authorId, createdAt, message));
     }
 }

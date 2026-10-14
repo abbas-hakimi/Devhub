@@ -155,6 +155,30 @@ public class PullRequestReviewService {
                 false, null);
     }
 
+    /** Initial merge policy: at least one current non-author approval and no current effective change request. */
+    @Transactional(readOnly = true)
+    public MergeApprovalDecision evaluateMergeApproval(PullRequest pr, Long currentSourceHeadId) {
+        long total = reviews.countByPullRequest_Id(pr.getId());
+        if (total > MAX_STATUS_REVIEWS) throw new InvalidRequestException("Review history exceeds the supported merge limit");
+        Map<Long, PullRequestReview> effective = new HashMap<>();
+        for (PullRequestReview review : reviews.findByPullRequest_IdOrderByCreatedAtAscIdAsc(pr.getId())) {
+            if (review.getState() != PullRequestReviewState.COMMENTED) effective.put(review.getReviewer().getId(), review);
+        }
+        long approvals = 0;
+        long changesRequested = 0;
+        for (PullRequestReview review : effective.values()) {
+            if (!review.getReviewedHeadCommitId().equals(currentSourceHeadId)
+                    || review.getReviewer().getId().equals(pr.getAuthor().getId())) continue;
+            if (review.getState() == PullRequestReviewState.APPROVED) approvals++;
+            if (review.getState() == PullRequestReviewState.CHANGES_REQUESTED) changesRequested++;
+        }
+        return new MergeApprovalDecision(approvals, changesRequested);
+    }
+
+    public record MergeApprovalDecision(long currentApprovals, long currentChangeRequests) {
+        public boolean allowsMerge() { return currentApprovals > 0 && currentChangeRequests == 0; }
+    }
+
     @Transactional(readOnly = true)
     public ReviewCommentPageResponse listComments(Long pullRequestId, int page, int size, Long userId) {
         PullRequest pr = findPullRequest(pullRequestId);

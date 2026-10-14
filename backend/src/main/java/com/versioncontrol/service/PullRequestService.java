@@ -1,8 +1,6 @@
 package com.versioncontrol.service;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 import jakarta.validation.Validator;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,7 +24,6 @@ import com.versioncontrol.exception.RepositoryConflictException;
 import com.versioncontrol.exception.ResourceForbiddenException;
 import com.versioncontrol.exception.ResourceNotFoundException;
 import com.versioncontrol.repository.BranchRepository;
-import com.versioncontrol.repository.CommitRepository;
 import com.versioncontrol.repository.PullRequestRepository;
 import com.versioncontrol.repository.RepositoryRepository;
 import com.versioncontrol.repository.UserRepository;
@@ -36,17 +33,17 @@ public class PullRequestService {
     private final PullRequestRepository pullRequests;
     private final RepositoryRepository repositories;
     private final BranchRepository branches;
-    private final CommitRepository commits;
+    private final CommitGraphService commitGraph;
     private final RepositoryAccessService access;
     private final Validator validator;
     private final UserRepository users;
 
     public PullRequestService(PullRequestRepository pullRequests, RepositoryRepository repositories,
-            BranchRepository branches, CommitRepository commits, RepositoryAccessService access, Validator validator, UserRepository users) {
+            BranchRepository branches, CommitGraphService commitGraph, RepositoryAccessService access, Validator validator, UserRepository users) {
         this.pullRequests = pullRequests;
         this.repositories = repositories;
         this.branches = branches;
-        this.commits = commits;
+        this.commitGraph = commitGraph;
         this.access = access;
         this.validator = validator;
         this.users = users;
@@ -164,17 +161,8 @@ public class PullRequestService {
         Long sourceHead = source.getHeadCommit().getId();
         Long targetHead = target.getHeadCommit().getId();
         if (sourceHead.equals(targetHead)) throw new RepositoryConflictException("Source and target branches have the same HEAD");
-        if (isAncestor(repositoryId, sourceHead, targetHead)) throw new RepositoryConflictException("Source branch has no commits that are not already in the target branch");
-    }
-    private boolean isAncestor(Long repositoryId, Long ancestorId, Long descendantId) {
-        Long cursor = descendantId;
-        Set<Long> visited = new HashSet<>();
-        while (cursor != null) {
-            if (cursor.equals(ancestorId)) return true;
-            if (!visited.add(cursor)) throw new RepositoryConflictException("Commit history contains a cycle");
-            cursor = commits.findParentId(repositoryId, cursor).orElse(null);
-        }
-        return false;
+        if (commitGraph.load(repositoryId).isAncestor(sourceHead, targetHead))
+            throw new RepositoryConflictException("Source branch has no commits that are not already in the target branch");
     }
     private String normalizeDescription(String description) {
         if (description == null) return null;

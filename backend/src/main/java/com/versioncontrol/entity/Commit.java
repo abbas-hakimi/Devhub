@@ -22,7 +22,8 @@ import jakarta.validation.constraints.Pattern;
 @Table(name = "commits",
         indexes = {
                 @Index(name = "idx_commits_repository_created_id", columnList = "repository_id, created_at, id"),
-                @Index(name = "idx_commits_repository_parent", columnList = "repository_id, parent_commit_id")
+                @Index(name = "idx_commits_repository_parent", columnList = "repository_id, parent_commit_id"),
+                @Index(name = "idx_commits_repository_second_parent", columnList = "repository_id, second_parent_commit_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_commits_commit_hash", columnNames = "commit_hash"),
@@ -58,6 +59,10 @@ public class Commit {
     @JoinColumn(name = "parent_commit_id")
     private Commit parentCommit;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "second_parent_commit_id")
+    private Commit secondParentCommit;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -70,6 +75,11 @@ public class Commit {
 
     public Commit(Repository repository, String commitHash, String message, User author, Tree rootTree,
             Commit parentCommit, LocalDateTime createdAt) {
+        this(repository, commitHash, message, author, rootTree, parentCommit, null, createdAt);
+    }
+
+    public Commit(Repository repository, String commitHash, String message, User author, Tree rootTree,
+            Commit parentCommit, Commit secondParentCommit, LocalDateTime createdAt) {
         if (repository == null) throw new IllegalArgumentException("repository is required");
         if (commitHash == null || !commitHash.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("commit hash must be 64 lowercase hexadecimal characters");
@@ -81,12 +91,20 @@ public class Commit {
         if (parentCommit != null && !sameRepository(repository, parentCommit.getRepository())) {
             throw new IllegalArgumentException("parent commit must belong to the same repository");
         }
+        boolean duplicateParent = parentCommit != null && secondParentCommit != null
+                && (parentCommit == secondParentCommit || (parentCommit.getId() != null
+                        && parentCommit.getId().equals(secondParentCommit.getId())));
+        if (secondParentCommit != null && (!sameRepository(repository, secondParentCommit.getRepository())
+                || parentCommit == null || duplicateParent)) {
+            throw new IllegalArgumentException("second parent must be distinct and belong to the same repository");
+        }
         this.repository = repository;
         this.commitHash = commitHash;
         this.message = message;
         this.author = author;
         this.rootTree = rootTree;
         this.parentCommit = parentCommit;
+        this.secondParentCommit = secondParentCommit;
         this.createdAt = createdAt.truncatedTo(ChronoUnit.MICROS);
     }
 
@@ -101,5 +119,6 @@ public class Commit {
     public User getAuthor() { return author; }
     public Tree getRootTree() { return rootTree; }
     public Commit getParentCommit() { return parentCommit; }
+    public Commit getSecondParentCommit() { return secondParentCommit; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

@@ -47,6 +47,29 @@ class CommitCanonicalizerTests {
     }
 
     @Test
+    void mergeCommitEncodingIsDeterministicAndEveryFieldIncludingBothParentsContributes() {
+        String secondParent = "3".repeat(64);
+        byte[] encoded = CommitCanonicalizer.canonicalizeMerge(7, PARENT, secondParent, ROOT, 11, TIME, "Merge");
+        assertThat(encoded).isEqualTo(CommitCanonicalizer.canonicalizeMerge(7, PARENT, secondParent, ROOT, 11, TIME, "Merge"));
+        assertThat(CommitCanonicalizer.hashMerge(7, PARENT, secondParent, ROOT, 11, TIME, "Merge"))
+                .isEqualTo(Sha256Hasher.hashBytes(encoded));
+        String hash = CommitCanonicalizer.hashMerge(7, PARENT, secondParent, ROOT, 11, TIME, "Merge");
+        assertThat(CommitCanonicalizer.hashMerge(7, "4".repeat(64), secondParent, ROOT, 11, TIME, "Merge")).isNotEqualTo(hash);
+        assertThat(CommitCanonicalizer.hashMerge(7, PARENT, "4".repeat(64), ROOT, 11, TIME, "Merge")).isNotEqualTo(hash);
+        assertThat(CommitCanonicalizer.hashMerge(7, PARENT, secondParent, "4".repeat(64), 11, TIME, "Merge")).isNotEqualTo(hash);
+        assertThat(CommitCanonicalizer.hashMerge(8, PARENT, secondParent, ROOT, 11, TIME, "Merge")).isNotEqualTo(hash);
+        assertThat(CommitCanonicalizer.hashMerge(7, PARENT, secondParent, ROOT, 12, TIME, "Merge")).isNotEqualTo(hash);
+        assertThat(CommitCanonicalizer.hashMerge(7, PARENT, secondParent, ROOT, 11, TIME.plusSeconds(1), "Merge")).isNotEqualTo(hash);
+        assertThat(CommitCanonicalizer.hashMerge(7, PARENT, secondParent, ROOT, 11, TIME, "merge")).isNotEqualTo(hash);
+    }
+
+    @Test
+    void mergeCommitEncodingRejectsMissingOrRepeatedParents() {
+        assertThatIllegalArgumentException().isThrownBy(() -> CommitCanonicalizer.hashMerge(7, null, PARENT, ROOT, 11, TIME, "Merge"));
+        assertThatIllegalArgumentException().isThrownBy(() -> CommitCanonicalizer.hashMerge(7, PARENT, PARENT, ROOT, 11, TIME, "Merge"));
+    }
+
+    @Test
     void utf8MessageBytesAreExactAndTimestampIsDeterministicAtMicrosecondPrecision() {
         String composed = CommitCanonicalizer.hash(7, null, ROOT, 11, TIME, "café");
         String decomposed = CommitCanonicalizer.hash(7, null, ROOT, 11, TIME, "cafe\u0301");

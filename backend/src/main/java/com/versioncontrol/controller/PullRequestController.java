@@ -20,6 +20,9 @@ import com.versioncontrol.dto.pullrequest.CreatePullRequestRequest;
 import com.versioncontrol.dto.pullrequest.PullRequestPageResponse;
 import com.versioncontrol.dto.pullrequest.PullRequestResponse;
 import com.versioncontrol.dto.pullrequest.UpdatePullRequestRequest;
+import com.versioncontrol.dto.pullrequest.MergePullRequestRequest;
+import com.versioncontrol.dto.pullrequest.MergePullRequestResponse;
+import com.versioncontrol.dto.pullrequest.MergeabilityResponse;
 import com.versioncontrol.dto.review.CreateStandaloneReviewCommentRequest;
 import com.versioncontrol.dto.review.PullRequestReviewResponse;
 import com.versioncontrol.dto.review.ReviewCommentPageResponse;
@@ -32,6 +35,7 @@ import com.versioncontrol.entity.PullRequestState;
 import com.versioncontrol.security.UserPrincipal;
 import com.versioncontrol.service.PullRequestService;
 import com.versioncontrol.service.PullRequestReviewService;
+import com.versioncontrol.service.PullRequestMergeService;
 
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -41,9 +45,12 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public class PullRequestController {
     private final PullRequestService service;
     private final PullRequestReviewService reviewService;
-    public PullRequestController(PullRequestService service, PullRequestReviewService reviewService) {
+    private final PullRequestMergeService mergeService;
+    public PullRequestController(PullRequestService service, PullRequestReviewService reviewService,
+            PullRequestMergeService mergeService) {
         this.service = service;
         this.reviewService = reviewService;
+        this.mergeService = mergeService;
     }
 
     @PostMapping("/repositories/{repositoryId}/pull-requests")
@@ -99,6 +106,20 @@ public class PullRequestController {
     @GetMapping("/pull-requests/{pullRequestId}/review-status")
     public ReviewStatusResponse reviewStatus(@PathVariable Long pullRequestId, Authentication authentication) {
         return reviewService.status(pullRequestId, userId(authentication));
+    }
+
+    @GetMapping("/pull-requests/{pullRequestId}/mergeability")
+    public MergeabilityResponse mergeability(@PathVariable Long pullRequestId, Authentication authentication) {
+        return mergeService.mergeability(pullRequestId, userId(authentication));
+    }
+
+    @PostMapping("/pull-requests/{pullRequestId}/merge")
+    public ResponseEntity<MergePullRequestResponse> merge(@PathVariable Long pullRequestId,
+            @Valid @RequestBody MergePullRequestRequest request, Authentication authentication) {
+        MergePullRequestResponse response = mergeService.merge(pullRequestId, request, userId(authentication));
+        return response.conflictPaths().isEmpty()
+                ? ResponseEntity.ok(response)
+                : ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @GetMapping("/pull-requests/{pullRequestId}/comments")
