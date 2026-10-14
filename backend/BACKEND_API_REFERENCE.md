@@ -58,6 +58,8 @@ Paginated responses include their page metadata and an array. Pages are zero-bas
 
 Collaborator roles are `READ`, `WRITE`, and `MAINTAIN`. Ownership remains with the repository owner and is not accepted from request data. `WRITE` can contribute commits and open pull requests. `MAINTAIN` includes repository maintenance capabilities but does not replace owner-only collaborator administration.
 
+Repository deletion is guarded by database references. In particular, Git branches and commits use restrictive foreign keys and have no delete API; after Git initialization, deleting the repository returns `409` while that history remains. Workflow definitions and their run/job/log history, repository activity, and repository-linked notifications cascade when the repository is deleted, but that does not remove restricted Git history. Tests that exercise manual workflow dispatch should reuse a dedicated initialized test repository and remove only the workflows and collaborators they created.
+
 ### Git data and browsing
 
 | Method and path | Access | Purpose |
@@ -225,6 +227,45 @@ Order updates provide the complete ordered ID list, exactly once per item. For e
 | `PUT /api/projects/{projectId}/cards/order` | Personal owner or repository owner/MAINTAIN/WRITE | Reorder all cards in one column |
 
 Known limitations: project listing currently collects visible project records before slicing the requested page, so very large installations may need database-side visibility pagination. Personal projects have no sharing or configurable visibility. If access to an external repository linked from a personal project is revoked, a cards or board page containing that link returns `404`; the owner can remove the card or regain repository access. There is no project permission-management API or board activity for card reorder operations.
+
+## CI/CD workflows (Phase 11A)
+
+Workflow APIs manage validated definitions and deterministic simulated runs. **They do not execute builds, tests, deployment, shell commands, containers, or repository code.** Configuration schema version 1 is a JSON object with `version: 1` and `jobs`; each job has a unique name and a `steps` list drawn only from `CHECKOUT`, `BUILD`, `TEST`, `PACKAGE`, and `DEPLOY`. A configuration is limited to 1–10 jobs, 1–20 steps per job, and 16,384 serialized characters. Unknown fields or steps are rejected. For example:
+
+```json
+{"name":"Build and test","triggerType":"MANUAL","configuration":{"version":1,"jobs":[{"name":"Build","steps":["CHECKOUT","BUILD","TEST"]},{"name":"Package","steps":["PACKAGE"]}]}}
+```
+
+Public repositories allow anonymous reads of definitions, runs, jobs, and logs. Private repositories require the owner or an accepted collaborator; a private resource inaccessible to the caller is hidden with `404`. `READ` is read-only. `WRITE` and `MAINTAIN` may dispatch and cancel runs. Repository owner and `MAINTAIN` may create, update, enable, disable, and delete definitions. Definition `PATCH` is partial: omitted fields remain unchanged, and a supplied `description: null` clears the description. Definition names are unique within a repository, case-insensitively. All workflow/run/job/log endpoints re-check access against the associated repository.
+
+Manual dispatch accepts a branch name, an optional repository commit SHA, and an optional simulator-only outcome selector:
+
+```json
+{"branchName":"main","simulatedOutcome":"SUCCESS"}
+```
+
+The outcome can be `SUCCESS` or `FAILURE`; cancellation is performed through the cancel route. Dispatch returns `202` with a `QUEUED` run. A bounded scheduler advances it through `RUNNING` and job states to `SUCCESS` or `FAILURE`. Synthetic logs explicitly identify simulation and never claim real tests/builds ran. Cancellation and execution serialize on the run row; once cancelled, a run cannot later become successful. Terminal runs cannot be cancelled. Workflow deletion removes its run/job/log history transactionally; repository deletion cascades through workflow dependencies. Issues and pull requests are not affected by workflow cleanup.
+
+Automatic `PUSH` workflows are queued after a successful branch HEAD update from commit creation or a pull-request merge; branch creation and Git initialization alone do not emit a push. `PULL_REQUEST` workflows are queued after a pull request is successfully opened. Event dispatch occurs after the originating transaction commits, is deduplicated by a stable event key per workflow, and processing failures are logged without rolling back the commit or PR. Only enabled definitions with the matching trigger type run. Workflow activity entries use generic summaries and do not include definition names or log contents.
+
+| Method and path | Access | Purpose |
+|---|---|---|
+| `POST /api/repositories/{repositoryId}/workflows` | Owner/MAINTAIN | Create a workflow definition; returns `201` |
+| `GET /api/repositories/{repositoryId}/workflows?page=0&size=20` | Repository reader | List definitions |
+| `GET /api/workflows/{workflowId}` | Repository reader | Get a definition |
+| `PATCH /api/workflows/{workflowId}` | Owner/MAINTAIN | Partially update a definition |
+| `DELETE /api/workflows/{workflowId}` | Owner/MAINTAIN | Delete definition and its simulated history; returns `204` |
+| `POST /api/workflows/{workflowId}/enable` | Owner/MAINTAIN | Enable definition |
+| `POST /api/workflows/{workflowId}/disable` | Owner/MAINTAIN | Disable definition |
+| `POST /api/workflows/{workflowId}/dispatch` | WRITE/MAINTAIN/owner | Queue a MANUAL run; returns `202` |
+| `GET /api/workflows/{workflowId}/runs?page=0&size=20` | Repository reader | List workflow runs |
+| `GET /api/repositories/{repositoryId}/workflow-runs?page=0&size=20` | Repository reader | List repository runs |
+| `GET /api/workflow-runs/{runId}` | Repository reader | Get run state |
+| `POST /api/workflow-runs/{runId}/cancel` | WRITE/MAINTAIN/owner | Cancel a queued or running run |
+| `GET /api/workflow-runs/{runId}/jobs` | Repository reader | List the bounded jobs for a run |
+| `GET /api/workflow-jobs/{jobId}/logs?page=0&size=50` | Repository reader | Paginated synthetic logs |
+
+All paginated workflow endpoints use zero-based `page` and `size`, default sizes 20 (logs 50), and a maximum size of 100. Responses use `items`, `totalElements`, `totalPages`, and `hasNext`. Dispatching a disabled workflow or directly dispatching a non-MANUAL workflow returns `409`; invalid configuration or branch input returns `400`; inaccessible private workflow resources return `404`. The simulator processes at most 25 pending runs per scheduler tick and advances each by one state transition per tick; this MVP has no worker pool, external CI provider, workflow editing UI, secret management, artifacts, or real runner.
 
 ## Notifications and repository activity (Phase 9C)
 

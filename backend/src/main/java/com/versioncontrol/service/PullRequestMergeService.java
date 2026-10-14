@@ -13,6 +13,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.versioncontrol.dto.pullrequest.MergePullRequestRequest;
 import com.versioncontrol.dto.pullrequest.MergePullRequestResponse;
@@ -24,6 +25,7 @@ import com.versioncontrol.entity.PullRequest;
 import com.versioncontrol.entity.PullRequestState;
 import com.versioncontrol.entity.Repository;
 import com.versioncontrol.entity.User;
+import com.versioncontrol.entity.WorkflowTriggerType;
 import com.versioncontrol.exception.RepositoryConflictException;
 import com.versioncontrol.exception.ResourceNotFoundException;
 import com.versioncontrol.repository.BranchRepository;
@@ -48,15 +50,18 @@ public class PullRequestMergeService {
     private final ObjectStorage storage;
     private final EntityManager entityManager;
     private final RepositoryActivityService activity;
+    private final ApplicationEventPublisher events;
 
     public PullRequestMergeService(PullRequestRepository pullRequests, RepositoryRepository repositories,
             BranchRepository branches, CommitRepository commits, RepositoryAccessService access,
             CommitGraphService graphService, MergeTreeService trees, PullRequestReviewService reviewService,
-            UserRepository users, ObjectStorage storage, EntityManager entityManager, RepositoryActivityService activity) {
+            UserRepository users, ObjectStorage storage, EntityManager entityManager, RepositoryActivityService activity,
+            ApplicationEventPublisher events) {
         this.pullRequests = pullRequests; this.repositories = repositories; this.branches = branches;
         this.commits = commits; this.access = access; this.graphService = graphService; this.trees = trees;
         this.reviewService = reviewService; this.users = users; this.storage = storage; this.entityManager = entityManager;
         this.activity = activity;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +135,8 @@ public class PullRequestMergeService {
             requireApproved(pr, sourceHead);
             target.setHeadCommit(sourceHead);
             branches.saveAndFlush(target);
+            events.publishEvent(new WorkflowTriggerEvent(repository.getId(), WorkflowTriggerType.PUSH, userId,
+                    target.getName(), sourceHead.getCommitHash(), "push:" + repository.getId() + ":" + target.getId() + ":" + sourceHead.getCommitHash()));
             LocalDateTime mergedAt = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
             User merger = findUser(userId);
             pr.markMerged(merger, mergedAt);
@@ -167,6 +174,8 @@ public class PullRequestMergeService {
                 rootTree, targetHead, sourceHead, persistedAt));
         target.setHeadCommit(mergeCommit);
         branches.saveAndFlush(target);
+        events.publishEvent(new WorkflowTriggerEvent(repository.getId(), WorkflowTriggerType.PUSH, userId,
+                target.getName(), mergeCommit.getCommitHash(), "push:" + repository.getId() + ":" + target.getId() + ":" + mergeCommit.getCommitHash()));
         pr.markMerged(merger, persistedAt);
         pullRequests.saveAndFlush(pr);
         activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.COMMIT_CREATED,

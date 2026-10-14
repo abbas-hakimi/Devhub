@@ -20,6 +20,7 @@ import java.util.TreeMap;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.versioncontrol.dto.git.CommitChangeRequest;
 import com.versioncontrol.dto.git.CommitResponse;
@@ -32,6 +33,7 @@ import com.versioncontrol.entity.Tree;
 import com.versioncontrol.entity.TreeEntry;
 import com.versioncontrol.entity.TreeEntryType;
 import com.versioncontrol.entity.User;
+import com.versioncontrol.entity.WorkflowTriggerType;
 import com.versioncontrol.exception.InvalidRequestException;
 import com.versioncontrol.exception.RepositoryConflictException;
 import com.versioncontrol.exception.ResourceNotFoundException;
@@ -67,11 +69,12 @@ public class CommitService {
     private final ObjectStorage storage;
     private final UserRepository users;
     private final RepositoryActivityService activity;
+    private final ApplicationEventPublisher events;
 
     public CommitService(RepositoryRepository repositories, BranchRepository branches, CommitRepository commits,
             TreeRepository trees, TreeEntryRepository treeEntries, BlobRepository blobs,
             RepositoryAccessService repositoryAccess, ObjectStorage storage, UserRepository users,
-            RepositoryActivityService activity) {
+            RepositoryActivityService activity, ApplicationEventPublisher events) {
         this.repositories = repositories;
         this.branches = branches;
         this.commits = commits;
@@ -82,6 +85,7 @@ public class CommitService {
         this.storage = storage;
         this.users = users;
         this.activity = activity;
+        this.events = events;
     }
 
     @Transactional
@@ -190,6 +194,8 @@ public class CommitService {
                     newRoot, parent, persistedAt));
             branch.setHeadCommit(commit);
             branches.saveAndFlush(branch);
+            events.publishEvent(new WorkflowTriggerEvent(repositoryId, WorkflowTriggerType.PUSH, userId,
+                    branch.getName(), commit.getCommitHash(), "push:" + repositoryId + ":" + branch.getId() + ":" + commit.getCommitHash()));
             activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.COMMIT_CREATED,
                     "COMMIT", commit.getId(), "Created commit " + commit.getCommitHash().substring(0, 12), "COMMIT_CREATED:" + commit.getId());
         } catch (DataIntegrityViolationException duplicate) {

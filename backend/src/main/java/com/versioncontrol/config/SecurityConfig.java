@@ -98,7 +98,14 @@ public class SecurityConfig {
                                 "/api/projects/{projectId:\\d+}",
                                 "/api/projects/{projectId:\\d+}/columns",
                                 "/api/projects/{projectId:\\d+}/cards",
-                                "/api/projects/{projectId:\\d+}/board"
+                                "/api/projects/{projectId:\\d+}/board",
+                                "/api/repositories/{repositoryId:\\d+}/workflows",
+                                "/api/repositories/{repositoryId:\\d+}/workflow-runs",
+                                "/api/workflows/{workflowId:\\d+}",
+                                "/api/workflows/{workflowId:\\d+}/runs",
+                                "/api/workflow-runs/{runId:\\d+}",
+                                "/api/workflow-runs/{runId:\\d+}/jobs",
+                                "/api/workflow-jobs/{jobId:\\d+}/logs"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

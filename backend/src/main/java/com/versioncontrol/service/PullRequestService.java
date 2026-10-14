@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.versioncontrol.dto.pullrequest.CreatePullRequestRequest;
 import com.versioncontrol.dto.pullrequest.PullRequestPageResponse;
@@ -19,6 +20,7 @@ import com.versioncontrol.entity.Commit;
 import com.versioncontrol.entity.PullRequest;
 import com.versioncontrol.entity.PullRequestState;
 import com.versioncontrol.entity.Repository;
+import com.versioncontrol.entity.WorkflowTriggerType;
 import com.versioncontrol.exception.InvalidRequestException;
 import com.versioncontrol.exception.RepositoryConflictException;
 import com.versioncontrol.exception.ResourceForbiddenException;
@@ -38,10 +40,11 @@ public class PullRequestService {
     private final Validator validator;
     private final UserRepository users;
     private final RepositoryActivityService activity;
+    private final ApplicationEventPublisher events;
 
     public PullRequestService(PullRequestRepository pullRequests, RepositoryRepository repositories,
             BranchRepository branches, CommitGraphService commitGraph, RepositoryAccessService access, Validator validator, UserRepository users,
-            RepositoryActivityService activity) {
+            RepositoryActivityService activity, ApplicationEventPublisher events) {
         this.pullRequests = pullRequests;
         this.repositories = repositories;
         this.branches = branches;
@@ -50,6 +53,7 @@ public class PullRequestService {
         this.validator = validator;
         this.users = users;
         this.activity = activity;
+        this.events = events;
     }
 
     @Transactional
@@ -73,6 +77,8 @@ public class PullRequestService {
             PullRequest saved = pullRequests.saveAndFlush(pr);
             activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.PULL_REQUEST_OPENED,
                     "PULL_REQUEST", saved.getId(), "Opened pull request " + saved.getTitle(), "PULL_REQUEST_OPENED:" + saved.getId());
+            events.publishEvent(new WorkflowTriggerEvent(repositoryId, WorkflowTriggerType.PULL_REQUEST, userId,
+                    source.getName(), source.getHeadCommit().getCommitHash(), "pull-request-opened:" + saved.getId()));
             return PullRequestResponse.from(saved);
         } catch (DataIntegrityViolationException collision) {
             throw new RepositoryConflictException("Pull request conflicts with another update; retry the request");
