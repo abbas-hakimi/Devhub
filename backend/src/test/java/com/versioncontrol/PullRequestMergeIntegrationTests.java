@@ -231,6 +231,128 @@ class PullRequestMergeIntegrationTests {
         assertThat(pullRequests.findDetailedById(pr).orElseThrow().getState()).isEqualTo(com.versioncontrol.entity.PullRequestState.MERGED);
     }
 
+    @Test
+    void serializesMergeAgainstConcurrentSourceHeadUpdate() throws Exception {
+        Account owner = register("mergeheadraceowner");
+        Account reviewer = register("mergeheadracereviewer");
+        Account writer = register("mergeheadracewriter");
+        long repo = createRepository(owner, "PUBLIC");
+        String initial = initialize(owner, repo);
+        inviteWrite(owner, writer, repo);
+        inviteWrite(owner, reviewer, repo);
+        createBranch(owner, repo, "feature/head-race", initial);
+        String source = commit(writer, repo, "feature/head-race", initial,
+                "{\"path\":\"source.txt\",\"content\":\"source\"}");
+        long pr = createPr(owner, repo, "feature/head-race");
+        approve(reviewer, pr);
+        String mergeBody = mergeBody("FAST_FORWARD", source, initial, "Merge against racing source update");
+        CountDownLatch start = new CountDownLatch(1);
+        int mergeStatus;
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var update = executor.submit(() -> {
+                if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("race did not start");
+                return mvc.perform(post("/api/repositories/{id}/commits", repo)
+                                .header("Authorization", bearer(writer)).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"branch\":\"feature/head-race\",\"expectedHeadHash\":\"" + source
+                                        + "\",\"message\":\"concurrent source update\",\"changes\":[{\"path\":\"later.txt\",\"content\":\"later\"}]}"))
+                        .andReturn().getResponse().getStatus();
+            });
+            var merge = executor.submit(() -> mergeAtBarrier(start, pr, owner, mergeBody));
+            start.countDown();
+            assertThat(update.get(30, TimeUnit.SECONDS)).isEqualTo(201);
+            mergeStatus = merge.get(30, TimeUnit.SECONDS);
+        }
+        String currentSource = head(repo, "feature/head-race");
+        var finalState = pullRequests.findDetailedById(pr).orElseThrow().getState();
+        if (mergeStatus == 200) {
+            // Merge acquired the repository lock first. It fast-forwarded to the requested source,
+            // then the concurrent commit advanced the feature branch from that source.
+            assertThat(head(repo, "main")).isEqualTo(source);
+            assertThat(currentSource).isNotEqualTo(source);
+            assertThat(finalState).isEqualTo(com.versioncontrol.entity.PullRequestState.MERGED);
+        } else {
+            assertThat(mergeStatus).isEqualTo(409);
+            // The source commit acquired the lock first, so the merge observed stale expected HEADs.
+            assertThat(currentSource).isNotEqualTo(source);
+            assertThat(head(repo, "main")).isEqualTo(initial);
+            assertThat(finalState).isEqualTo(com.versioncontrol.entity.PullRequestState.OPEN);
+        }
+    }
+
+    @Test
+    void closedPullRequestCannotBeMerged() throws Exception {
+        Account owner = register("mergeclosedowner");
+        Account reviewer = register("mergeclosedreviewer");
+        long repo = createRepository(owner, "PUBLIC");
+        String initial = initialize(owner, repo);
+        inviteWrite(owner, reviewer, repo);
+        createBranch(owner, repo, "feature/closed", initial);
+        String source = commit(owner, repo, "feature/closed", initial,
+                "{\"path\":\"closed.txt\",\"content\":\"change\"}");
+        long pr = createPr(owner, repo, "feature/closed");
+        approve(reviewer, pr);
+        mvc.perform(post("/api/pull-requests/{id}/close", pr).header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.state").value("CLOSED"));
+        mvc.perform(post("/api/pull-requests/{id}/merge", pr).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content(mergeBody("FAST_FORWARD", source, initial, "closed")))
+                .andExpect(status().isConflict());
+        assertThat(head(repo, "main")).isEqualTo(initial);
+        assertThat(pullRequests.findDetailedById(pr).orElseThrow().getState()).isEqualTo(com.versioncontrol.entity.PullRequestState.CLOSED);
+    }
+
+    @Test
+    void reportsAddAddAndModifyDeleteConflicts() throws Exception {
+        Account owner = register("mergeadddeleteowner");
+        Account reviewer = register("mergeadddeletereviewer");
+        long repo = createRepository(owner, "PUBLIC");
+        String initial = initialize(owner, repo);
+        String base = commit(owner, repo, "main", initial,
+                "{\"path\":\"modify-delete.txt\",\"content\":\"base\"}");
+        inviteWrite(owner, reviewer, repo);
+        createBranch(owner, repo, "feature/add-delete", base);
+        mvc.perform(post("/api/repositories/{id}/commits", repo).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"branch\":\"feature/add-delete\",\"expectedHeadHash\":\""
+                                + base + "\",\"message\":\"source changes\",\"changes\":[{\"path\":\"added.txt\",\"content\":\"source\"}],\"deletedPaths\":[\"modify-delete.txt\"]}"))
+                .andExpect(status().isCreated());
+        commit(owner, repo, "main", base,
+                "{\"path\":\"added.txt\",\"content\":\"target\"},"
+                        + "{\"path\":\"modify-delete.txt\",\"content\":\"modified\"}");
+        long pr = createPr(owner, repo, "feature/add-delete");
+        approve(reviewer, pr);
+        mvc.perform(get("/api/pull-requests/{id}/mergeability", pr)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.mergeable").value(false))
+                .andExpect(jsonPath("$.conflictPaths").value(org.hamcrest.Matchers.containsInAnyOrder("added.txt", "modify-delete.txt")));
+    }
+
+    @Test
+    void detectsAmbiguousMergeBaseInCrissCrossHistory() throws Exception {
+        Account owner = register("mergecrisscrossowner");
+        Account reviewer = register("mergecrisscrossreviewer");
+        long repo = createRepository(owner, "PUBLIC");
+        String initial = initialize(owner, repo);
+        inviteWrite(owner, reviewer, repo);
+        String left = commit(owner, repo, "main", initial, "{\"path\":\"left.txt\",\"content\":\"left\"}");
+        createBranch(owner, repo, "feature/right", initial);
+        String right = commit(owner, repo, "feature/right", initial, "{\"path\":\"right.txt\",\"content\":\"right\"}");
+
+        long leftMergePr = createPr(owner, repo, "feature/right");
+        approve(reviewer, leftMergePr);
+        mvc.perform(post("/api/pull-requests/{id}/merge", leftMergePr).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content(mergeBody("MERGE_COMMIT", right, left, "left merge")))
+                .andExpect(status().isOk());
+        createBranch(owner, repo, "feature/left-original", left);
+        long rightMergePr = createPrForBranches(owner, repo, "feature/left-original", "feature/right");
+        approve(reviewer, rightMergePr);
+        mvc.perform(post("/api/pull-requests/{id}/merge", rightMergePr).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content(mergeBody("MERGE_COMMIT", left, right, "right merge")))
+                .andExpect(status().isOk());
+
+        long crissCrossPr = createPrForBranches(owner, repo, "feature/right", "main");
+        mvc.perform(get("/api/pull-requests/{id}/mergeability", crissCrossPr)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.mergeable").value(false))
+                .andExpect(jsonPath("$.reason").value("History has multiple best merge bases and requires manual resolution"));
+    }
+
     private int mergeAtBarrier(CountDownLatch start, long pr, Account owner, String body) throws Exception {
         if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("merge requests did not reach barrier");
         return mvc.perform(post("/api/pull-requests/{id}/merge", pr).header("Authorization", bearer(owner))
@@ -261,9 +383,12 @@ class PullRequestMergeIntegrationTests {
                 .andExpect(status().isCreated());
     }
     private long createPr(Account author, long repo, String sourceBranch) throws Exception {
+        return createPrForBranches(author, repo, sourceBranch, "main");
+    }
+    private long createPrForBranches(Account author, long repo, String sourceBranch, String targetBranch) throws Exception {
         String result = mvc.perform(post("/api/repositories/{id}/pull-requests", repo).header("Authorization", bearer(author))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Merge test\",\"sourceBranch\":\""
-                                + sourceBranch + "\",\"targetBranch\":\"main\"}"))
+                                + sourceBranch + "\",\"targetBranch\":\"" + targetBranch + "\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return ((Number) JsonPath.read(result, "$.id")).longValue();
     }

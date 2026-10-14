@@ -55,7 +55,6 @@ public class IssueService {
     public List<IssueResponse> list(Long repositoryId, IssueStatus status, Long actorId) {
         Repository repository = access.find(repositoryId);
         access.requireReadable(repository, actorId);
-        rejectReadOnlyCollaborator(repository, actorId);
         List<Issue> found = status == null
                 ? issues.findByRepository_IdOrderByCreatedAtDesc(repositoryId)
                 : issues.findByRepository_IdAndStatusOrderByCreatedAtDesc(repositoryId, status);
@@ -71,7 +70,6 @@ public class IssueService {
     public IssueResponse get(Long issueId, Long actorId) {
         Issue issue = findIssue(issueId);
         access.requireReadable(issue.getRepository(), actorId);
-        rejectReadOnlyCollaborator(issue.getRepository(), actorId);
         return response(issue);
     }
 

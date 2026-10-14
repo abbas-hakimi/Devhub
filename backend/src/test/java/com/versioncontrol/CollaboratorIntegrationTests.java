@@ -102,6 +102,10 @@ class CollaboratorIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"READ\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("READ"));
         mvc.perform(get("/api/repositories/{id}/branches", repo).header("Authorization", bearer(writer))).andExpect(status().isOk());
+        mvc.perform(get("/api/repositories/{id}/issues", repo).header("Authorization", bearer(writer)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(issueId));
+        mvc.perform(get("/api/issues/{id}", issueId).header("Authorization", bearer(writer)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(issueId));
         mvc.perform(post(base + "/branches").header("Authorization", bearer(writer)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"feature/blocked\",\"fromCommitHash\":\"" + featureHead + "\"}"))
                 .andExpect(status().isForbidden());

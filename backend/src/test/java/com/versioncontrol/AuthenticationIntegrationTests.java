@@ -52,7 +52,9 @@ class AuthenticationIntegrationTests {
         String response = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(loginBody))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String token = com.jayway.jsonpath.JsonPath.read(response, "$.accessToken");
-        mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401)).andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.timestamp").exists()).andExpect(jsonPath("$.fields").isEmpty());
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.username").value(username))
                 .andExpect(jsonPath("$.passwordHash").doesNotExist());
