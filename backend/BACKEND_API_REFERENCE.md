@@ -175,3 +175,22 @@ Merge requests carry `expectedSourceHead` and `expectedTargetHead`; stale values
 ## Compatibility notes
 
 The API currently has different page envelope names and limits for commit history, comparisons, PRs, and review resources. Clients should use the envelope documented for each route rather than assuming a single generic pagination object. Blob requests return raw content with a content type inferred from the path and an ETag based on the blob hash.
+
+## Notifications and repository activity (Phase 9C)
+
+All notification routes require a valid JWT. A caller sees only their own notifications; a notification belonging to another account returns `404`. Repository-scoped notifications are filtered against current repository visibility and accepted collaborator access, so permission revocation removes private-repository notifications from list and unread-count results. Pending collaborator invitations are the exception: the invitee can see the invitation notice because the invitation itself grants that limited information. `PATCH` read/unread operations are idempotent. `unread=true` filters to unread items and `unread=false` filters to read items. Pages use `page` (zero-based) and `size` (1–100), newest first, and return `items`, `totalElements`, `totalPages`, and `hasNext`.
+
+| Method and route | Permission | Behavior |
+| --- | --- | --- |
+| `GET /api/notifications?unread=true&page=0&size=20` | Authenticated | List caller's notifications, newest first; omit `unread` to include both states |
+| `GET /api/notifications/unread-count` | Authenticated | Count unread notifications visible under current repository access |
+| `PATCH /api/notifications/{notificationId}/read` | Recipient | Mark read and return the notification |
+| `PATCH /api/notifications/{notificationId}/unread` | Recipient | Mark unread and return the notification |
+| `POST /api/notifications/mark-all-read` | Authenticated | Mark all currently visible unread notifications read; returns `markedRead` |
+| `GET /api/repositories/{repositoryId}/activity?page=0&size=20` | Public repository: anonymous; private: repository reader | List safe activity summaries newest first |
+
+Notification event types are `COLLABORATOR_INVITED`, `COLLABORATOR_ACCEPTED`, `COLLABORATOR_DECLINED`, `ISSUE_COMMENTED`, `PULL_REQUEST_REVIEWED`, `PULL_REQUEST_REVIEW_COMMENTED`, `DISCUSSION_REPLIED`, `DISCUSSION_REPLY_REPLIED`, `DISCUSSION_ANSWER_ACCEPTED`, and `RELEASE_PUBLISHED`. Actors never receive a notification for their own action. Repeated notification keys are suppressed. Release notifications go to the 500 most recently starred users (by star ID) at most; there is no new subscription model or unbounded release fan-out. Pending invite notices are recipient scoped and do not carry a repository foreign key so the invitee can read them before accepting.
+
+Activity event types are `REPOSITORY_CREATED`, `ISSUE_OPENED`, `ISSUE_CLOSED`, `PULL_REQUEST_OPENED`, `PULL_REQUEST_MERGED`, `PULL_REQUEST_CLOSED`, `COMMIT_CREATED`, `BRANCH_CREATED`, `RELEASE_PUBLISHED`, `DISCUSSION_CREATED`, and `DISCUSSION_ANSWER_ACCEPTED`. Activity is stored in the same transaction as its originating operation. Summaries contain resource names or short commit hash prefixes only; request bodies, release notes, and file contents are not included. Follow, star/reaction, issue-comment, pull-request-review, and discussion-reply actions do not create activity feed entries.
+
+Both page endpoints cap `size` at 100 and `page` at 2000. Resource IDs in notification targets are references only; clients should fetch the resource through its normal API, which applies its own current authorization checks. The Python HTTP suite is `phase9c_api_test.py`; see its module documentation and the Phase 9C audit for the exact local commands and MySQL cleanup scope.

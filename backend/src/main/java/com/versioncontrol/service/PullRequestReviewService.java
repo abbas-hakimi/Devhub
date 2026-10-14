@@ -30,6 +30,7 @@ import com.versioncontrol.entity.PullRequest;
 import com.versioncontrol.entity.PullRequestReview;
 import com.versioncontrol.entity.PullRequestReviewComment;
 import com.versioncontrol.entity.PullRequestReviewState;
+import com.versioncontrol.entity.NotificationEventType;
 import com.versioncontrol.entity.ReviewCommentSide;
 import com.versioncontrol.entity.User;
 import com.versioncontrol.exception.InvalidRequestException;
@@ -56,10 +57,12 @@ public class PullRequestReviewService {
     private final FileDiffService fileDiffs;
     private final EntityManager entityManager;
     private final UserRepository users;
+    private final NotificationService notifications;
 
     public PullRequestReviewService(PullRequestRepository pullRequests, PullRequestReviewRepository reviews,
             PullRequestReviewCommentRepository comments, BranchRepository branches,
-            RepositoryAccessService access, FileDiffService fileDiffs, EntityManager entityManager, UserRepository users) {
+            RepositoryAccessService access, FileDiffService fileDiffs, EntityManager entityManager, UserRepository users,
+            NotificationService notifications) {
         this.pullRequests = pullRequests;
         this.reviews = reviews;
         this.comments = comments;
@@ -68,6 +71,7 @@ public class PullRequestReviewService {
         this.fileDiffs = fileDiffs;
         this.entityManager = entityManager;
         this.users = users;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -96,6 +100,12 @@ public class PullRequestReviewService {
         }
         comments.flush();
         List<PullRequestReviewComment> savedComments = comments.findByReview_IdInOrderByIdAsc(List.of(review.getId()));
+        NotificationEventType notificationType = request.state() == PullRequestReviewState.COMMENTED
+                ? NotificationEventType.PULL_REQUEST_REVIEW_COMMENTED : NotificationEventType.PULL_REQUEST_REVIEWED;
+        notifications.notifyRecipients(List.of(pr.getAuthor().getId()), userId, pr.getRepository(), notificationType,
+                request.state() == PullRequestReviewState.COMMENTED ? "New pull request comment" : "Pull request review submitted",
+                "A review was submitted for pull request " + pr.getTitle(), "PULL_REQUEST", pr.getId(),
+                "PR_REVIEW:" + review.getId());
         return reviewResponse(review, savedComments);
     }
 

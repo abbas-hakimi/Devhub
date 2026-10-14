@@ -21,9 +21,11 @@ public class IssueCommentService {
     private final IssueRepository issues;
     private final UserRepository users;
     private final RepositoryAccessService access;
+    private final NotificationService notifications;
 
-    public IssueCommentService(IssueCommentRepository comments, IssueRepository issues, UserRepository users, RepositoryAccessService access) {
-        this.comments = comments; this.issues = issues; this.users = users; this.access = access;
+    public IssueCommentService(IssueCommentRepository comments, IssueRepository issues, UserRepository users, RepositoryAccessService access,
+            NotificationService notifications) {
+        this.comments = comments; this.issues = issues; this.users = users; this.access = access; this.notifications = notifications;
     }
 
     @Transactional
@@ -31,8 +33,12 @@ public class IssueCommentService {
         Issue issue = findIssue(issueId);
         access.requireReadable(issue.getRepository(), actorId);
         rejectReadOnlyCollaborator(issue.getRepository(), actorId);
-        return IssueCommentResponse.from(comments.saveAndFlush(new IssueComment(issue,
-                users.findById(actorId).orElseThrow(() -> new ResourceNotFoundException("User not found")), request.body().trim())));
+        IssueComment saved = comments.saveAndFlush(new IssueComment(issue,
+                users.findById(actorId).orElseThrow(() -> new ResourceNotFoundException("User not found")), request.body().trim()));
+        notifications.notifyRecipients(List.of(issue.getAuthor().getId()), actorId, issue.getRepository(),
+                com.versioncontrol.entity.NotificationEventType.ISSUE_COMMENTED, "New issue comment",
+                "A comment was added to issue " + issue.getTitle(), "ISSUE", issue.getId(), "ISSUE_COMMENT:" + saved.getId());
+        return IssueCommentResponse.from(saved);
     }
 
     @Transactional(readOnly = true)

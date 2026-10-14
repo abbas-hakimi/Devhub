@@ -34,16 +34,18 @@ public class GitInitializationTransaction {
     private final TreeRepository trees;
     private final RepositoryAccessService repositoryAccess;
     private final ObjectStorage objectStorage;
+    private final RepositoryActivityService activity;
 
     public GitInitializationTransaction(RepositoryRepository repositories, BranchRepository branches,
             CommitRepository commits, TreeRepository trees, RepositoryAccessService repositoryAccess,
-            ObjectStorage objectStorage) {
+            ObjectStorage objectStorage, RepositoryActivityService activity) {
         this.repositories = repositories;
         this.branches = branches;
         this.commits = commits;
         this.trees = trees;
         this.repositoryAccess = repositoryAccess;
         this.objectStorage = objectStorage;
+        this.activity = activity;
     }
 
     @Transactional
@@ -72,6 +74,10 @@ public class GitInitializationTransaction {
         Commit initialCommit = commits.saveAndFlush(new Commit(repository, commitHash, INITIAL_MESSAGE,
                 repository.getOwner(), rootTree, null, persistedTimestamp));
         Branch main = branches.saveAndFlush(new Branch(repository, MAIN_BRANCH, initialCommit));
+        activity.record(repository, authenticatedUserId, com.versioncontrol.entity.RepositoryActivityEventType.COMMIT_CREATED,
+                "COMMIT", initialCommit.getId(), "Created initial commit " + commitHash.substring(0, 12), "COMMIT_CREATED:" + initialCommit.getId());
+        activity.record(repository, authenticatedUserId, com.versioncontrol.entity.RepositoryActivityEventType.BRANCH_CREATED,
+                "BRANCH", main.getId(), "Created branch main", "BRANCH_CREATED:" + main.getId());
         return GitInitializationResult.from(main, true);
     }
 }

@@ -66,10 +66,12 @@ public class CommitService {
     private final RepositoryAccessService repositoryAccess;
     private final ObjectStorage storage;
     private final UserRepository users;
+    private final RepositoryActivityService activity;
 
     public CommitService(RepositoryRepository repositories, BranchRepository branches, CommitRepository commits,
             TreeRepository trees, TreeEntryRepository treeEntries, BlobRepository blobs,
-            RepositoryAccessService repositoryAccess, ObjectStorage storage, UserRepository users) {
+            RepositoryAccessService repositoryAccess, ObjectStorage storage, UserRepository users,
+            RepositoryActivityService activity) {
         this.repositories = repositories;
         this.branches = branches;
         this.commits = commits;
@@ -79,6 +81,7 @@ public class CommitService {
         this.repositoryAccess = repositoryAccess;
         this.storage = storage;
         this.users = users;
+        this.activity = activity;
     }
 
     @Transactional
@@ -187,6 +190,8 @@ public class CommitService {
                     newRoot, parent, persistedAt));
             branch.setHeadCommit(commit);
             branches.saveAndFlush(branch);
+            activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.COMMIT_CREATED,
+                    "COMMIT", commit.getId(), "Created commit " + commit.getCommitHash().substring(0, 12), "COMMIT_CREATED:" + commit.getId());
         } catch (DataIntegrityViolationException duplicate) {
             throw new RepositoryConflictException("Commit conflicted with another repository update; retry the request");
         }

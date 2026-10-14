@@ -23,11 +23,14 @@ public class BranchService {
     private final BranchRepository branches;
     private final CommitRepository commits;
     private final RepositoryAccessService repositoryAccess;
+    private final RepositoryActivityService activity;
 
-    public BranchService(BranchRepository branches, CommitRepository commits, RepositoryAccessService repositoryAccess) {
+    public BranchService(BranchRepository branches, CommitRepository commits, RepositoryAccessService repositoryAccess,
+            RepositoryActivityService activity) {
         this.branches = branches;
         this.commits = commits;
         this.repositoryAccess = repositoryAccess;
+        this.activity = activity;
     }
 
     @Transactional
@@ -52,6 +55,8 @@ public class BranchService {
 
         try {
             Branch branch = branches.saveAndFlush(new Branch(repository, request.name(), head));
+            activity.record(repository, authenticatedUserId, com.versioncontrol.entity.RepositoryActivityEventType.BRANCH_CREATED,
+                    "BRANCH", branch.getId(), "Created branch " + branch.getName(), "BRANCH_CREATED:" + branch.getId());
             return BranchResponse.from(branch);
         } catch (DataIntegrityViolationException duplicate) {
             throw new RepositoryConflictException("A branch with this name already exists in the repository");

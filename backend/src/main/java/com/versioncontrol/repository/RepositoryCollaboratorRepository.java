@@ -17,4 +17,6 @@ public interface RepositoryCollaboratorRepository extends JpaRepository<Reposito
     List<RepositoryCollaborator> findByUser_IdAndStatusOrderByCreatedAtDesc(Long userId, com.versioncontrol.entity.InvitationStatus status);
     @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select c from RepositoryCollaborator c where c.id = :id") Optional<RepositoryCollaborator> lockById(@Param("id") Long id);
     @Query("select c.repository.id from RepositoryCollaborator c where c.user.id = :userId and c.status = com.versioncontrol.entity.InvitationStatus.ACCEPTED") List<Long> acceptedRepositoryIds(@Param("userId") Long userId);
+    @Query("select c.user.id from RepositoryCollaborator c where c.repository.id = :repositoryId and c.user.id in :userIds and c.status = com.versioncontrol.entity.InvitationStatus.ACCEPTED")
+    List<Long> acceptedUserIds(@Param("repositoryId") Long repositoryId, @Param("userIds") List<Long> userIds);
 }

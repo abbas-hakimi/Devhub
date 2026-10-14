@@ -32,11 +32,17 @@ public class RepositoryReleaseService {
     private final RepositoryReleaseRepository releases;
     private final UserRepository users;
     private final RepositoryAccessService access;
+    private final RepositoryActivityService activity;
+    private final NotificationService notifications;
+    private final com.versioncontrol.repository.RepositoryStarRepository stars;
 
     public RepositoryReleaseService(RepositoryRepository repositories, RepositoryTagRepository tags,
-            RepositoryReleaseRepository releases, UserRepository users, RepositoryAccessService access) {
+            RepositoryReleaseRepository releases, UserRepository users, RepositoryAccessService access,
+            RepositoryActivityService activity, NotificationService notifications,
+            com.versioncontrol.repository.RepositoryStarRepository stars) {
         this.repositories = repositories; this.tags = tags; this.releases = releases;
         this.users = users; this.access = access;
+        this.activity = activity; this.notifications = notifications; this.stars = stars;
     }
 
     @Transactional
@@ -54,8 +60,10 @@ public class RepositoryReleaseService {
         LocalDateTime publishedAt = draft ? null : now();
         var creator = users.findById(actorId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         try {
-            return RepositoryReleaseResponse.from(releases.saveAndFlush(new RepositoryRelease(repository, tag,
-                    request.title().trim(), clean(request.description()), draft, prerelease, creator, publishedAt)));
+            RepositoryRelease saved = releases.saveAndFlush(new RepositoryRelease(repository, tag,
+                    request.title().trim(), clean(request.description()), draft, prerelease, creator, publishedAt));
+            if (!draft) published(repository, saved, actorId);
+            return RepositoryReleaseResponse.from(saved);
         } catch (DataIntegrityViolationException duplicate) {
             throw duplicateRelease();
         }
@@ -113,8 +121,11 @@ public class RepositoryReleaseService {
                 release.setPublishedAt(request.getDraft() ? null : now());
             }
         }
+        boolean publishing = release.isDraft() && Boolean.FALSE.equals(request.getDraft());
         try {
-            return RepositoryReleaseResponse.from(releases.saveAndFlush(release));
+            RepositoryRelease saved = releases.saveAndFlush(release);
+            if (publishing) published(repository, saved, actorId);
+            return RepositoryReleaseResponse.from(saved);
         } catch (DataIntegrityViolationException conflict) {
             throw new RepositoryConflictException("Release update conflicts with existing data");
         }
@@ -132,6 +143,18 @@ public class RepositoryReleaseService {
     private RepositoryRelease findRelease(Long repositoryId, Long releaseId) {
         return releases.findDetailedByRepository_IdAndId(repositoryId, releaseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Release not found"));
+    }
+
+    private void published(com.versioncontrol.entity.Repository repository, RepositoryRelease release, Long actorId) {
+        activity.record(repository, actorId, com.versioncontrol.entity.RepositoryActivityEventType.RELEASE_PUBLISHED,
+                "RELEASE", release.getId(), "Published a repository release", "RELEASE_PUBLISHED:" + release.getId() + ":" + release.getPublishedAt());
+        notifications.notifyRecipients(stars.findUserIdsByRepositoryId(repository.getId(),
+                        org.springframework.data.domain.PageRequest.of(0, 500,
+                                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Order.desc("id"))))
+                        .getContent(), actorId, repository,
+                com.versioncontrol.entity.NotificationEventType.RELEASE_PUBLISHED, "New repository release",
+                "A release was published for " + repository.getName(), "RELEASE", release.getId(),
+                "RELEASE_PUBLISHED:" + release.getId() + ":" + release.getPublishedAt());
     }
 
     private void validatePage(int page, int size) {

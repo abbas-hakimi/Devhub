@@ -69,6 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/commits/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/repositories/{id:\\d+}",
+                                "/api/repositories/{repositoryId:\\d+}/activity",
                                 "/api/repositories/{repositoryId:\\d+}/commits",
                                 "/api/repositories/{repositoryId:\\d+}/compare",
                                 "/api/repositories/{repositoryId:\\d+}/pull-requests",

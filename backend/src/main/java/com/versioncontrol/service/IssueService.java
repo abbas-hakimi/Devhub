@@ -34,10 +34,11 @@ public class IssueService {
     private final UserRepository users;
     private final RepositoryAccessService access;
     private final MilestoneRepository milestones;
+    private final RepositoryActivityService activity;
 
     public IssueService(IssueRepository issues, IssueLabelRepository issueLabels, UserRepository users, RepositoryAccessService access,
-            MilestoneRepository milestones) {
-        this.issues = issues; this.issueLabels = issueLabels; this.users = users; this.access = access; this.milestones = milestones;
+            MilestoneRepository milestones, RepositoryActivityService activity) {
+        this.issues = issues; this.issueLabels = issueLabels; this.users = users; this.access = access; this.milestones = milestones; this.activity = activity;
     }
 
     @Transactional
@@ -48,7 +49,10 @@ public class IssueService {
         User author = findUser(actorId);
         User assignee = request.assigneeId() == null ? null : findAssignee(repository, author, request.assigneeId());
         Issue issue = new Issue(repository, author, assignee, request.title().trim(), clean(request.description()));
-        return response(issues.saveAndFlush(issue));
+        Issue saved = issues.saveAndFlush(issue);
+        activity.record(repository, actorId, com.versioncontrol.entity.RepositoryActivityEventType.ISSUE_OPENED,
+                "ISSUE", saved.getId(), "Opened issue " + saved.getTitle(), "ISSUE_OPENED:" + saved.getId());
+        return response(saved);
     }
 
     @Transactional(readOnly = true)
@@ -97,6 +101,7 @@ public class IssueService {
             issue.setTitle(request.getTitle().trim());
         }
         if (request.getDescription() != null) issue.setDescription(clean(request.getDescription()));
+        boolean closedNow = writer && request.getStatus() == IssueStatus.CLOSED && issue.getStatus() != IssueStatus.CLOSED;
         if (writer && request.getStatus() != null && request.getStatus() != issue.getStatus()) {
             if (request.getStatus() == IssueStatus.CLOSED) issue.setClosedAt(LocalDateTime.now());
             else issue.setClosedAt(null);
@@ -110,7 +115,10 @@ public class IssueService {
             issue.setMilestone(request.getMilestoneId() == null ? null : findMilestoneForRepository(request.getMilestoneId(), repository));
         }
         try {
-            return response(issues.saveAndFlush(issue));
+            Issue saved = issues.saveAndFlush(issue);
+            if (closedNow) activity.record(repository, actorId, com.versioncontrol.entity.RepositoryActivityEventType.ISSUE_CLOSED,
+                    "ISSUE", saved.getId(), "Closed issue " + saved.getTitle(), "ISSUE_CLOSED:" + saved.getId() + ":" + saved.getClosedAt());
+            return response(saved);
         } catch (DataIntegrityViolationException exception) {
             throw new RepositoryConflictException("Issue update conflicts with existing data");
         }

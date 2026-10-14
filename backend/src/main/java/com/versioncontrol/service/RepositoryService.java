@@ -23,12 +23,15 @@ public class RepositoryService {
     private final UserRepository users;
     private final RepositoryStarRepository stars;
     private final RepositoryAccessService access;
+    private final RepositoryActivityService activity;
 
-    public RepositoryService(RepositoryRepository repositories, UserRepository users, RepositoryStarRepository stars, RepositoryAccessService access) {
+    public RepositoryService(RepositoryRepository repositories, UserRepository users, RepositoryStarRepository stars, RepositoryAccessService access,
+            RepositoryActivityService activity) {
         this.repositories = repositories;
         this.users = users;
         this.stars = stars;
         this.access = access;
+        this.activity = activity;
     }
 
     @Transactional
@@ -40,7 +43,10 @@ public class RepositoryService {
         }
         Repository repository = new Repository(name, cleanDescription(request.description()), request.visibility(), owner);
         try {
-            return RepositoryResponse.from(repositories.saveAndFlush(repository));
+            Repository saved = repositories.saveAndFlush(repository);
+            activity.record(saved, owner.getId(), com.versioncontrol.entity.RepositoryActivityEventType.REPOSITORY_CREATED,
+                    "REPOSITORY", saved.getId(), "Created repository " + saved.getName(), "REPOSITORY_CREATED:" + saved.getId());
+            return RepositoryResponse.from(saved);
         } catch (DataIntegrityViolationException exception) {
             throw new RepositoryConflictException("A repository with this name already exists for this owner");
         }

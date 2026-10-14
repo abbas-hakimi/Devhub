@@ -23,9 +23,12 @@ public class DiscussionReplyService {
     private final DiscussionReplyReactionRepository reactions;
     private final UserRepository users;
     private final RepositoryAccessService access;
+    private final NotificationService notifications;
     public DiscussionReplyService(RepositoryDiscussionRepository discussions, DiscussionReplyRepository replies,
-            DiscussionReplyReactionRepository reactions, UserRepository users, RepositoryAccessService access) {
+            DiscussionReplyReactionRepository reactions, UserRepository users, RepositoryAccessService access,
+            NotificationService notifications) {
         this.discussions = discussions; this.replies = replies; this.reactions = reactions; this.users = users; this.access = access;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -43,6 +46,14 @@ public class DiscussionReplyService {
         User author = users.findById(actorId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         DiscussionReply reply = replies.saveAndFlush(new DiscussionReply(discussion, author, parent, request.body().trim()));
         validateParentRelationship(reply.getId(), parent == null ? null : parent.getId());
+        java.util.Set<Long> recipients = new java.util.LinkedHashSet<>();
+        recipients.add(discussion.getAuthor().getId());
+        if (parent != null) recipients.add(parent.getAuthor().getId());
+        notifications.notifyRecipients(recipients, actorId, discussion.getRepository(),
+                parent == null ? com.versioncontrol.entity.NotificationEventType.DISCUSSION_REPLIED
+                        : com.versioncontrol.entity.NotificationEventType.DISCUSSION_REPLY_REPLIED,
+                "New discussion reply", "A reply was added to " + discussion.getTitle(), "DISCUSSION", discussion.getId(),
+                "DISCUSSION_REPLY:" + reply.getId());
         return response(reply);
     }
 

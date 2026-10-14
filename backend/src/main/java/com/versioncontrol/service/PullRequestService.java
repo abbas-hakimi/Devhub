@@ -37,9 +37,11 @@ public class PullRequestService {
     private final RepositoryAccessService access;
     private final Validator validator;
     private final UserRepository users;
+    private final RepositoryActivityService activity;
 
     public PullRequestService(PullRequestRepository pullRequests, RepositoryRepository repositories,
-            BranchRepository branches, CommitGraphService commitGraph, RepositoryAccessService access, Validator validator, UserRepository users) {
+            BranchRepository branches, CommitGraphService commitGraph, RepositoryAccessService access, Validator validator, UserRepository users,
+            RepositoryActivityService activity) {
         this.pullRequests = pullRequests;
         this.repositories = repositories;
         this.branches = branches;
@@ -47,6 +49,7 @@ public class PullRequestService {
         this.access = access;
         this.validator = validator;
         this.users = users;
+        this.activity = activity;
     }
 
     @Transactional
@@ -67,7 +70,10 @@ public class PullRequestService {
                 title, normalizeDescription(request.description()), users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found")), source, target,
                 source.getHeadCommit(), target.getHeadCommit());
         try {
-            return PullRequestResponse.from(pullRequests.saveAndFlush(pr));
+            PullRequest saved = pullRequests.saveAndFlush(pr);
+            activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.PULL_REQUEST_OPENED,
+                    "PULL_REQUEST", saved.getId(), "Opened pull request " + saved.getTitle(), "PULL_REQUEST_OPENED:" + saved.getId());
+            return PullRequestResponse.from(saved);
         } catch (DataIntegrityViolationException collision) {
             throw new RepositoryConflictException("Pull request conflicts with another update; retry the request");
         }
@@ -119,7 +125,11 @@ public class PullRequestService {
         if (pr.getState() == PullRequestState.CLOSED) return PullRequestResponse.from(pr);
         pr.setState(PullRequestState.CLOSED);
         pr.setClosedAt(LocalDateTime.now());
-        return PullRequestResponse.from(pullRequests.saveAndFlush(pr));
+        PullRequest saved = pullRequests.saveAndFlush(pr);
+        activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.PULL_REQUEST_CLOSED,
+                "PULL_REQUEST", saved.getId(), "Closed pull request " + saved.getTitle(),
+                "PULL_REQUEST_CLOSED:" + saved.getId() + ":" + saved.getClosedAt());
+        return PullRequestResponse.from(saved);
     }
 
     @Transactional

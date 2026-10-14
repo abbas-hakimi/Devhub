@@ -27,12 +27,16 @@ public class DiscussionService {
     private final DiscussionReplyReactionRepository replyReactions;
     private final UserRepository users;
     private final RepositoryAccessService access;
+    private final RepositoryActivityService activity;
+    private final NotificationService notifications;
 
     public DiscussionService(RepositoryRepository repositories, RepositoryDiscussionRepository discussions,
             DiscussionReplyRepository replies, DiscussionReactionRepository reactions,
-            DiscussionReplyReactionRepository replyReactions, UserRepository users, RepositoryAccessService access) {
+            DiscussionReplyReactionRepository replyReactions, UserRepository users, RepositoryAccessService access,
+            RepositoryActivityService activity, NotificationService notifications) {
         this.repositories = repositories; this.discussions = discussions; this.replies = replies;
         this.reactions = reactions; this.replyReactions = replyReactions; this.users = users; this.access = access;
+        this.activity = activity; this.notifications = notifications;
     }
 
     @Transactional
@@ -46,6 +50,8 @@ public class DiscussionService {
         User author = users.findById(actorId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         RepositoryDiscussion created = discussions.saveAndFlush(new RepositoryDiscussion(repository, number,
                 request.category(), request.title().trim(), request.body().trim(), author));
+        activity.record(repository, actorId, RepositoryActivityEventType.DISCUSSION_CREATED, "DISCUSSION", created.getId(),
+                "Created discussion " + created.getTitle(), "DISCUSSION_CREATED:" + created.getId());
         return response(created);
     }
 
@@ -130,8 +136,16 @@ public class DiscussionService {
         DiscussionReply reply = replies.findById(replyId).orElseThrow(() -> new ResourceNotFoundException("Reply not found"));
         if (!reply.getDiscussion().getId().equals(discussionId))
             throw new InvalidRequestException("Accepted answer must belong to this discussion");
+        if (java.util.Objects.equals(discussion.getAcceptedReplyId(), replyId)) return;
         discussion.setAcceptedReplyId(replyId);
         discussions.saveAndFlush(discussion);
+        activity.record(discussion.getRepository(), actorId, RepositoryActivityEventType.DISCUSSION_ANSWER_ACCEPTED,
+                "DISCUSSION", discussion.getId(), "Accepted an answer in " + discussion.getTitle(),
+                "DISCUSSION_ANSWER_ACCEPTED:" + discussion.getId() + ":" + replyId);
+        notifications.notifyRecipients(List.of(reply.getAuthor().getId()), actorId, discussion.getRepository(),
+                NotificationEventType.DISCUSSION_ANSWER_ACCEPTED, "Your answer was accepted",
+                "Your reply was accepted in " + discussion.getTitle(), "DISCUSSION", discussion.getId(),
+                "DISCUSSION_ANSWER_ACCEPTED:" + discussion.getId() + ":" + replyId);
     }
 
     @Transactional

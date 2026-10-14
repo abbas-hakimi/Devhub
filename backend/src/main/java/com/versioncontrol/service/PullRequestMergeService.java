@@ -47,14 +47,16 @@ public class PullRequestMergeService {
     private final UserRepository users;
     private final ObjectStorage storage;
     private final EntityManager entityManager;
+    private final RepositoryActivityService activity;
 
     public PullRequestMergeService(PullRequestRepository pullRequests, RepositoryRepository repositories,
             BranchRepository branches, CommitRepository commits, RepositoryAccessService access,
             CommitGraphService graphService, MergeTreeService trees, PullRequestReviewService reviewService,
-            UserRepository users, ObjectStorage storage, EntityManager entityManager) {
+            UserRepository users, ObjectStorage storage, EntityManager entityManager, RepositoryActivityService activity) {
         this.pullRequests = pullRequests; this.repositories = repositories; this.branches = branches;
         this.commits = commits; this.access = access; this.graphService = graphService; this.trees = trees;
         this.reviewService = reviewService; this.users = users; this.storage = storage; this.entityManager = entityManager;
+        this.activity = activity;
     }
 
     @Transactional(readOnly = true)
@@ -132,6 +134,8 @@ public class PullRequestMergeService {
             User merger = findUser(userId);
             pr.markMerged(merger, mergedAt);
             pullRequests.saveAndFlush(pr);
+            activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.PULL_REQUEST_MERGED,
+                    "PULL_REQUEST", pr.getId(), "Merged pull request " + pr.getTitle(), "PULL_REQUEST_MERGED:" + pr.getId());
             return new MergePullRequestResponse(id, PullRequestState.MERGED, request.strategy(),
                     sourceHead.getCommitHash(), sourceHead.getCommitHash(), base.commitHash(), null, mergedAt,
                     List.of(), "Pull request merged by fast-forward");
@@ -165,6 +169,10 @@ public class PullRequestMergeService {
         branches.saveAndFlush(target);
         pr.markMerged(merger, persistedAt);
         pullRequests.saveAndFlush(pr);
+        activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.COMMIT_CREATED,
+                "COMMIT", mergeCommit.getId(), "Created merge commit " + mergeCommit.getCommitHash().substring(0, 12), "COMMIT_CREATED:" + mergeCommit.getId());
+        activity.record(repository, userId, com.versioncontrol.entity.RepositoryActivityEventType.PULL_REQUEST_MERGED,
+                "PULL_REQUEST", pr.getId(), "Merged pull request " + pr.getTitle(), "PULL_REQUEST_MERGED:" + pr.getId());
         return new MergePullRequestResponse(id, PullRequestState.MERGED, request.strategy(),
                 sourceHead.getCommitHash(), mergeCommit.getCommitHash(), base.commitHash(), mergeCommit.getCommitHash(),
                 persistedAt, List.of(), "Pull request merged with a two-parent merge commit");
