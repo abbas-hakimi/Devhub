@@ -176,6 +176,56 @@ Merge requests carry `expectedSourceHead` and `expectedTargetHead`; stale values
 
 The API currently has different page envelope names and limits for commit history, comparisons, PRs, and review resources. Clients should use the envelope documented for each route rather than assuming a single generic pagination object. Blob requests return raw content with a content type inferred from the path and an ETag based on the blob hash.
 
+### Projects and Kanban boards (Phase 10)
+
+Projects use `PERSONAL` and `REPOSITORY` scopes. A personal project is private, belongs to the authenticated user, and is visible only to that owner. A repository project belongs to the repository owner and inherits its current public/private visibility and collaborator access; request bodies never choose an owner or project visibility. Anonymous users can read public repository projects. Private resources are hidden with `404` from anonymous users and collaborators without access.
+
+Repository project creation, metadata updates, archive/restore, deletion, and column management require repository owner or `MAINTAIN`. `WRITE` can create, edit, move, reorder, and delete cards. `READ` can view only. Personal project actions are owner-only. Archived projects remain readable, but all writes return `409` until restored. Project collections and card collections use zero-based `page` (default `0`) and `size` (default `20` for projects and `50` for cards; maximum `100`), ordered by recent project update or column/position/card ID. The board endpoint returns the whole board only when it has at most 500 cards; larger boards return `400` and should be read through the paginated cards route.
+
+Project creation example:
+
+```json
+{"scope":"REPOSITORY","repositoryId":42,"name":"Web refresh","description":"Track the redesign"}
+```
+
+For a personal project, use `{"scope":"PERSONAL","name":"My tasks"}` and omit `repositoryId`. Each project starts with `Todo`, `In Progress`, `In Review`, and `Done` columns. Columns are limited to 100 per project; each column is limited to 10,000 cards. Empty columns can be deleted; deleting a column that still contains cards returns `409` and preserves those cards. Move or delete cards before deleting their column. Project deletion transactionally removes that project's cards and columns before removing the project; linked issues and pull requests remain intact. Database constraints prevent a card from referencing a column in a different project, and linked issue/pull-request deletion is restricted until its card is removed.
+
+Card creation examples:
+
+```json
+{"columnId":101,"cardType":"NOTE","title":"Update screenshots","description":"Refresh docs images"}
+{"columnId":101,"cardType":"ISSUE","issueId":73}
+{"columnId":102,"cardType":"PULL_REQUEST","pullRequestId":18}
+```
+
+NOTE cards require a title and may have a description. ISSUE and PULL_REQUEST cards derive their title from the linked resource; `description`, when supplied, is card-specific. Linked resources must be readable by the caller. Repository project links must be in that same repository; personal projects may link resources from any repository the owner can currently read. Authorization is rechecked when cards are returned. Duplicate links of the same issue or pull request within one project return `409`. Linked-resource cards cannot be edited as notes, though they can be moved or removed.
+
+Order updates provide the complete ordered ID list, exactly once per item. For example, `PUT /api/projects/{projectId}/columns/order` accepts `{"columnIds":[12,14,13]}`; card ordering accepts `{"columnId":12,"cardIds":[51,49,53]}`. Positions are zero-based and normalized contiguously. Move accepts `{"columnId":14,"position":0}`; omitted `position` appends. Project-row locking serializes board writes and order changes. Repository activity records repository project creation, archive/restore, card creation, and card movement in the originating transaction; personal projects never write to repository activity. Reorders do not emit activity.
+
+| Method and path | Access | Purpose |
+|---|---|---|
+| `POST /api/projects` | Authenticated; personal owner is caller; repository owner/MAINTAIN | Create a project and default columns |
+| `GET /api/projects?page=0&size=20` | Anonymous for public repository projects; authenticated adds accessible private and owned personal projects | List visible projects |
+| `GET /api/projects/{projectId}` | Project reader | Get project metadata |
+| `PATCH /api/projects/{projectId}` | Personal owner or repository owner/MAINTAIN | Partially update name/description |
+| `DELETE /api/projects/{projectId}` | Personal owner or repository owner/MAINTAIN | Delete project and board |
+| `POST /api/projects/{projectId}/archive` | Personal owner or repository owner/MAINTAIN | Archive; repeated request is idempotent |
+| `POST /api/projects/{projectId}/restore` | Personal owner or repository owner/MAINTAIN | Restore; repeated request is idempotent |
+| `GET /api/projects/{projectId}/columns` | Project reader | List columns in board order |
+| `POST /api/projects/{projectId}/columns` | Personal owner or repository owner/MAINTAIN | Add a column |
+| `PATCH /api/project-columns/{columnId}` | Personal owner or repository owner/MAINTAIN | Rename a column |
+| `DELETE /api/project-columns/{columnId}` | Personal owner or repository owner/MAINTAIN | Delete an empty column |
+| `PUT /api/projects/{projectId}/columns/order` | Personal owner or repository owner/MAINTAIN | Reorder all project columns |
+| `POST /api/projects/{projectId}/cards` | Personal owner or repository owner/MAINTAIN/WRITE | Create note or linked-resource card |
+| `GET /api/projects/{projectId}/cards?page=0&size=50` | Project reader | Paginated cards in board order |
+| `GET /api/projects/{projectId}/board` | Project reader | Fetch columns and cards (maximum 500 cards) |
+| `PATCH /api/project-cards/{cardId}` | Personal owner or repository owner/MAINTAIN/WRITE | Edit a NOTE card |
+| `DELETE /api/project-cards/{cardId}` | Personal owner or repository owner/MAINTAIN/WRITE | Delete a card |
+| `POST /api/project-cards/{cardId}/move` | Personal owner or repository owner/MAINTAIN/WRITE | Move a card and optionally choose its position |
+| `PUT /api/projects/{projectId}/cards/order` | Personal owner or repository owner/MAINTAIN/WRITE | Reorder all cards in one column |
+
+Known limitations: project listing currently collects visible project records before slicing the requested page, so very large installations may need database-side visibility pagination. Personal projects have no sharing or configurable visibility. If access to an external repository linked from a personal project is revoked, a cards or board page containing that link returns `404`; the owner can remove the card or regain repository access. There is no project permission-management API or board activity for card reorder operations.
+
 ## Notifications and repository activity (Phase 9C)
 
 All notification routes require a valid JWT. A caller sees only their own notifications; a notification belonging to another account returns `404`. Repository-scoped notifications are filtered against current repository visibility and accepted collaborator access, so permission revocation removes private-repository notifications from list and unread-count results. Pending collaborator invitations are the exception: the invitee can see the invitation notice because the invitation itself grants that limited information. `PATCH` read/unread operations are idempotent. `unread=true` filters to unread items and `unread=false` filters to read items. Pages use `page` (zero-based) and `size` (1–100), newest first, and return `items`, `totalElements`, `totalPages`, and `hasNext`.

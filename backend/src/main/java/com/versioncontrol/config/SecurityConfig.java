@@ -93,7 +93,12 @@ public class SecurityConfig {
                                 "/api/pull-requests/{pullRequestId:\\d+}/reviews",
                                 "/api/pull-requests/{pullRequestId:\\d+}/review-status",
                                 "/api/pull-requests/{pullRequestId:\\d+}/mergeability",
-                                "/api/pull-requests/{pullRequestId:\\d+}/comments"
+                                "/api/pull-requests/{pullRequestId:\\d+}/comments",
+                                "/api/projects",
+                                "/api/projects/{projectId:\\d+}",
+                                "/api/projects/{projectId:\\d+}/columns",
+                                "/api/projects/{projectId:\\d+}/cards",
+                                "/api/projects/{projectId:\\d+}/board"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
