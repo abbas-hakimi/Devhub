@@ -3,3 +3,5 @@ backend/target/
 
 __pycache__/
 *.pyc
+
+/REBUILD_SPEC.md
