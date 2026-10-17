@@ -69,8 +69,14 @@ def driver(frontend_url, request):
                 fetch('/api/auth/logout', {method:'POST', credentials:'include'})
                   .then(r => done(r.status)).catch(() => done(0));
             """)
+    except Exception:
+        # Transport failures may be urllib3/OSError rather than Selenium errors.
+        request.node.add_report_section('teardown', 'Session cleanup', 'Browser unavailable; cookie logout could not be confirmed.')
     finally:
-        browser.quit()
+        try:
+            browser.quit()
+        except Exception:
+            request.node.add_report_section('teardown', 'Browser cleanup', 'Browser was already disconnected; quit could not be confirmed.')
 
 
 @pytest.fixture
@@ -101,14 +107,21 @@ def pytest_runtest_makereport(item, call):
     report = outcome.get_result()
     browser = getattr(item, "browser", None)
     if report.failed and browser:
-        ARTIFACTS.mkdir(exist_ok=True)
-        name = re.sub(r"[^a-zA-Z0-9_-]", "_", item.name)
         # Mask form values and account identifiers before saving a failure image.
         try:
-            browser.execute_script("document.querySelectorAll('input,.profile-menu').forEach(e=>e.style.visibility='hidden')")
-            browser.save_screenshot(str(ARTIFACTS / (name + ".png")))
-        except WebDriverException:
-            pass
+            ARTIFACTS.mkdir(exist_ok=True)
+            name = re.sub(r"[^a-zA-Z0-9_-]", "_", item.name)
+            # Mask only during capture, then restore. Permanently hiding inputs
+            # here broke repository teardown after a failed workflow assertion.
+            browser.execute_script("window.__e2eMask=document.createElement('style');window.__e2eMask.textContent='input,textarea,.profile-menu{visibility:hidden!important}';document.head.appendChild(window.__e2eMask)")
+            browser.save_screenshot(str(ARTIFACTS / (name + '_' + report.when + ".png")))
+        except Exception:
+            report.sections.append(('Screenshot', 'Unavailable: browser disconnected or capture failed; original failure preserved.'))
+        finally:
+            try:
+                browser.execute_script("window.__e2eMask?.remove();delete window.__e2eMask")
+            except Exception:
+                pass
 
 
 @pytest.fixture

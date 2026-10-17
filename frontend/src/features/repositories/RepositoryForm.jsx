@@ -1,0 +1,11 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Alert } from '../../components/UI';
+import { normalizeError } from '../../services/api';
+const schema=z.object({name:z.string().trim().min(1,'Enter a repository name.').max(100,'Use no more than 100 characters.'),description:z.string().max(10000),visibility:z.enum(['PUBLIC','PRIVATE'])});
+export default function RepositoryForm({initial,onSave,label='Create repository'}) {
+  const {register,handleSubmit,setError,formState:{errors,isSubmitting}}=useForm({resolver:zodResolver(schema),defaultValues:initial || {name:'',description:'',visibility:'PRIVATE'}});
+  async function submit(values){try{await onSave(values);}catch(failure){const e=normalizeError(failure);Object.entries(e.fields).forEach(([field,message])=>setError(field,{message}));setError('root',{message:e.message});}}
+  return <form className="repository-form" onSubmit={handleSubmit(submit)} noValidate><Alert>{errors.root?.message}</Alert><div className="mb-4"><label className="form-label" htmlFor="repo-name">Repository name</label><input id="repo-name" className="form-control" {...register('name')} aria-invalid={!!errors.name} aria-describedby="repo-name-error"/><div id="repo-name-error" className="field-error">{errors.name?.message}</div><small className="text-secondary">Required · maximum 100 characters · unique per owner.</small></div><div className="mb-4"><label className="form-label" htmlFor="repo-description">Description</label><textarea id="repo-description" rows={4} className="form-control" {...register('description')}/><div className="field-error">{errors.description?.message}</div></div><fieldset className="visibility-options mb-4"><legend>Visibility</legend>{['PRIVATE','PUBLIC'].map(value=><label key={value}><input type="radio" value={value} {...register('visibility')}/><span><strong>{value==='PRIVATE'?'Private':'Public'}</strong><small>{value==='PRIVATE'?'Only owner and accepted collaborators can read.':'Anyone can read. Write permissions still apply.'}</small></span></label>)}</fieldset><button className="btn btn-primary" disabled={isSubmitting}>{isSubmitting?'Saving…':label}</button></form>;
+}

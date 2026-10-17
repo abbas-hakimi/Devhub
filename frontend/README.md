@@ -1,4 +1,4 @@
-# DevHub frontend · Phase 12A
+# DevHub frontend · Phase 12B
 
 React/JSX + Vite, Bootstrap 5, React Router, Axios, TanStack Query, React Hook Form, Zod, and Lucide. Requires Node 22.12+ (Node 24 is also supported).
 
@@ -32,7 +32,13 @@ Copy `.env.example` to `.env.local` only when overriding defaults. `VITE_API_BAS
 
 `components/`: UI primitives and error boundary; `layouts/`: responsive workspace shell; `features/auth/`: forms and route protection; `features/dashboard/`: actual user welcome and navigation; `services/`: central transport and repository service; `context/`: auth/theme; `pages/`: repository list, placeholders, forbidden/404; `styles/`: shared navy/violet and off-white design tokens. Hooks/utilities can be added as reusable needs arise.
 
-The repositories page calls the verified `GET /api/repositories/mine` array contract, forwards cancellation signals, and renders real results or an empty state. Search is explicitly marked unavailable. Explore, issues, pull requests, projects, discussions, notifications, and settings are labeled placeholders. No counts, activity, or repository data are fabricated. Repository details/creation and richer dashboard widgets belong to later phases.
+Phase 12B implements dashboard statistics from GET /repositories/mine (owned plus accepted collaboration repositories), search by name/description, visibility/ownership filters, updated/name/created sorting, and public discovery via GET /repositories. Filtering is client-side over the existing array APIs; no polling or per-card requests are used.
+
+Routes: `/` dashboard; `/repositories` accessible repositories; `/explore` public repositories; `/repositories/new` creation; `/repositories/:repositoryId` overview; `/repositories/:repositoryId/settings` management. Stable numeric IDs survive renames. Create/update send only name (required, max 100), description (max 10,000), and PUBLIC/PRIVATE visibility. Owner is derived by the backend. Settings permit owners and confirmed accepted MAINTAIN collaborators; deletion is owner-only and requires typing the repository name in a native accessible modal. Server 409 dependency errors stay visible and never imply deletion succeeded. Query caches are updated/invalidated after confirmed mutations.
+
+Overview loads actual repository metadata, timestamps, branches/head summaries, and collaborator records where owner/MAINTAIN access permits. Main is identified only when present; there is no configurable default-branch field. No total commit-count or star REST API exists, so neither is fabricated. Code, issues, PRs, discussions, projects, releases are explicitly upcoming repository sections. AI is planned only. Search in the global topbar remains unavailable; repository search is functional.
+
+Repository components live under `features/repositories`; APIs remain in `services/repositories.js`. No backend production changes or migrations were needed. Existing authentication and theme behavior is preserved. Array listing may require server pagination in a later scalability phase.
 
 ## Verification
 

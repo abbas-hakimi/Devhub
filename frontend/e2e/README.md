@@ -55,3 +55,15 @@ npm run build
 npm run lint
 npm test -- --run
 ```
+
+## Phase 12B workflows
+
+`test_repositories.py` creates a uniquely named private repository through the UI, opens and edits it, reloads to verify session persistence, searches/filters/sorts, and confirms deletion in fixture teardown. It never initializes Git or creates dependent features, so the existing deletion safeguards remain intact. A failed cleanup is a test error rather than a silent success. Existing account credentials use the same environment variables as Phase 12A. Missing credentials/server/browser prerequisites are reported by existing fixtures. Star E2E is unavailable because there is no star REST endpoint. A missing repository route is also checked. Component tests cover reader denial, conflict handling, mutation payloads, native confirmation, lists, loading and empty states.
+
+## Phase 12B reporting and cleanup hardening
+
+Failure screenshots are best-effort: filesystem, Selenium, and driver-transport exceptions cannot replace the original report. Inputs, textareas, and profile details are masked only during capture, then restored. Dead-browser logout/quit failures are recorded as cleanup diagnostics. Original browser-operation failures remain ordinary failed tests. Reporting regression tests simulate ConnectionRefusedError/OSError without Chrome.
+
+The disposable repository fixture now registers cleanup before browser creation submission. Independent authenticated API cleanup uses only this run's unique original/edited name, authenticated owner ID, and tracked repository ID when available. It can recover after Chrome exits or creation succeeds before redirect capture. Cleanup failure raises a clear teardown error; it never broad-deletes repositories. The successful workflow still confirms deletion through the UI, with API cleanup as fallback. The separate cleanup login session is logged out afterward.
+
+The repository Save action uses a native-click helper: center-scroll, verify the target is enabled/visible and topmost at its center, then WebDriver click. Intercepted/stale races retry under WebDriverWait; persistent obstructions fail with a sanitized hit-target tag/class. No JavaScript click is used. `test_interactions.py` repeats off-screen native clicks on desktop/mobile without credentials; authenticated workflow remains a separate test.

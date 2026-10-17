@@ -7,7 +7,12 @@ from selenium.webdriver.support import expected_conditions as EC
 def test_sidebar_placeholders(logged_in, wait, path, title):
     logged_in.find_element(By.CSS_SELECTOR, f"nav[aria-label='Main navigation'] a[href='/{path}']").click()
     wait.until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, "#main h1"), title))
-    assert "COMING IN A LATER PHASE" in logged_in.find_element(By.CSS_SELECTOR, ".empty-panel").text
+    if path == 'explore':
+        # Explore is implemented in Phase 12B; retain the navigation assertion
+        # and verify its real public-repository browser instead of a placeholder.
+        wait.until(EC.visibility_of_element_located((By.ID, 'repository-search')))
+    else:
+        assert "COMING IN A LATER PHASE" in logged_in.find_element(By.CSS_SELECTOR, ".empty-panel").text
 
 
 def test_mobile_navigation(logged_in, wait):
