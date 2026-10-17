@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 
 /REBUILD_SPEC.md
+
+/.vscode/
